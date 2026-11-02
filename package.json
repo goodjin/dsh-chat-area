@@ -1,0 +1,84 @@
+{
+  "name": "@threadharbor/dsh-conversation-files",
+  "version": "0.1.0",
+  "description": "DSH plugin suite: in-conversation file reading/editing, Mermaid rendering, ACP process view, interrupted turn recovery, and lost input recovery",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./file-view": {
+      "types": "./src/file-view/index.ts",
+      "default": "./src/file-view/index.ts"
+    },
+    "./mermaid": {
+      "types": "./src/mermaid/index.ts",
+      "default": "./src/mermaid/index.ts"
+    },
+    "./acp-process-view": {
+      "types": "./src/acp-process-view/index.ts",
+      "default": "./src/acp-process-view/index.ts"
+    },
+    "./interrupted-recovery": {
+      "types": "./src/interrupted-recovery/index.ts",
+      "default": "./src/interrupted-recovery/index.ts"
+    },
+    "./lost-input": {
+      "types": "./src/lost-input/index.ts",
+      "default": "./src/lost-input/index.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "lib"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "slots",
+        "remote",
+        "uiConversation",
+        "uiWorkspace",
+        "sessions"
+      ],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-client-ui-slots": ">=0.2.0-rc.2 <0.3",
+    "@deepseek-ai/dsh-client-ui-conversation": ">=0.2.0-rc.2 <0.3",
+    "@deepseek-ai/dsh-client-ui-chat": ">=0.2.0-rc.2 <0.3",
+    "@deepseek-ai/dsh-client-ui-primitives": ">=0.2.0-rc.2 <0.3",
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-client-ui-slots": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-ui-conversation": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-ui-chat": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-ui-primitives": "0.2.0-rc.2",
+    "@types/react": "^18.2.0",
+    "react": "^18.2.0",
+    "tsdown": "^0.5.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/threadharbor/dsh-conversation-files.git"
+  }
+}
