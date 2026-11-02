@@ -1,26 +1,24 @@
 /**
  * DSH 会话区增强 — 浏览器半边。
  *
- * 现在只做一件事：会话头部右端的「短会话 ID + 复制」。
+ * 通用会话区功能，与跑哪种 agent 无关：
+ * - 会话头部右端的「短会话 ID + 复制」（本包独有）；
+ * - Mermaid 图渲染（扫 DOM 的 ```mermaid 代码块，画成 SVG，可切「图表 / 源码」）；
+ *   运行时经宿主半边 `/threadharbor/mermaid.js` 按需懒加载，不内联进客户端包；
+ * - 答案卡片、会话尾部文件卡片（随后续批次从 acp-agent 迁入）。
  *
- * 这个包曾经声明了四项功能（文件查看、mermaid、答案编辑、会话 ID 条），但前
- * 三项只有占位实现——文件查看的组件返回 null、mermaid 指向一条不存在的路由、
- * 答案编辑是空函数。它们真正的实现活在 `@goodjin2/dsh-acp-agent` 的浏览器
- * 半边（会话尾部文件卡片、mermaid 渲染、答案卡片），并且已经随机组装载。
- * 为避免两套 UI 打架，这里不再重复注册，只保留本包独有、也没被别处提供的
- * 会话 ID 条。
- *
- * `src/file-view`、`src/mermaid`、`src/answer-edit` 三个目录仍留在仓库里，作为
- * 将来要搬回时的脚手架；它们不在任何装载路径上（DSH 只加载 `.` 与 `./client`）。
+ * 历史上这三（除会话 ID 条外）曾在 acp-agent 的浏览器半边实现，2026-11 迁回本包。
  */
 
 import { registerSessionIdBar } from './session-id-bar/register.js'
+import { startMermaidDiagrams } from './mermaid.ts'
+import { fallbackT, NAMESPACE, zh } from './locales.ts'
 
 /** Loader 行与诊断里看到的插件名。 */
 export const name = 'threadharbor-chat-area'
 
-/** 唯一的依赖：插槽表。会话 id 由框架按会话作用域作为 props 传进来。 */
-export const inject = ['slots'] as const
+/** 依赖：插槽表（会话 ID 条）与 locale 注册中心（mermaid 文案）。 */
+export const inject = ['slots', 'locale'] as const
 
 export interface PluginContext {
   logger(name: string): { info(message: string): void; warn(message: string): void }
@@ -31,6 +29,9 @@ export interface PluginContext {
     register(options: Record<string, unknown>, component: unknown): unknown
     entries(key: string): readonly { options: Record<string, unknown>; component: unknown }[]
     subscribe(key: string, fn: () => void): () => void
+  }
+  locale?: {
+    register?: (dictionaries: Record<string, unknown>) => void
   }
 }
 
@@ -48,12 +49,32 @@ function safeLogger(ctx: PluginContext): { info(message: string): void; warn(mes
   }
 }
 
+/** 把本包文案装进 host 的 locale 注册中心；拿不到就安静退回，不拖累注册。 */
+function registerLocales(ctx: PluginContext): void {
+  try {
+    const register = ctx.locale?.register
+    if (typeof register !== 'function') return
+    register({ [NAMESPACE]: { zh: { ...zh }, en: {} } })
+  } catch {
+    // locale 注册失败不该连累其它功能
+  }
+}
+
 export function apply(ctx: PluginContext): void {
   const log = safeLogger(ctx)
+  registerLocales(ctx)
   try {
     registerSessionIdBar(ctx.slots)
     log.info('session id bar: registered')
   } catch (error: unknown) {
     log.warn(`session id bar: registration failed — ${error instanceof Error ? error.message : String(error)}`)
+  }
+  try {
+    // Mermaid 扫 DOM 找代码块，不需要插槽；文案走 fallbackT（中文），
+    // 与迁前在 acp-agent 里的行为一致。
+    startMermaidDiagrams({ t: fallbackT, log: (message: string) => log.info(message) })
+    log.info('mermaid: registered')
+  } catch (error: unknown) {
+    log.warn(`mermaid: registration failed — ${error instanceof Error ? error.message : String(error)}`)
   }
 }

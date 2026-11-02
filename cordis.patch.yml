@@ -1,15 +1,19 @@
 # @goodjin2/dsh-chat-area 的挂载配置。
 #
-# 本包只有浏览器半边（会话头部那枚短会话 ID + 复制按钮）；宿主侧的入口
-# （src/entry.ts）是个空壳，存在的唯一理由就是这一行。
+# 两条装载行，各司其职：
 #
-# 行名必须是**裸包名**。DSH 不按 package.json 的 dsh.client 自动装载浏览器包：
-# 客户端模块系统扫的是 Loader 的行，只有 name 恰好等于包名时那个包才会进
-# window.__DSH_BOOT__（`ClientModuleRegistry.resolveMeta` 经 `locatePkgJson`
-# 解析；带子路径的名字被判成「不是客户端行」）。少了这一行，插件装上也什么都不
-# 发生，宿主日志里一个字都没有——2026-11-02 在 @goodjin2/dsh-acp-agent 上刚刚
-# 现场踩过一次，整块浏览器界面（含设置里的屏蔽页）就是这样安静消失的。
+# 1. 浏览器半边（`chat-area-client`）：会话区通用 UI——短会话 ID + 复制、mermaid
+#    图渲染、答案卡片、会话尾部文件卡片。行名必须是**裸包名**；DSH 不按
+#    package.json 的 dsh.client 自动装载浏览器包，客户端模块系统扫的是 Loader
+#    的行，只有 name 恰好等于包名时那个包才会进 window.__DSH_BOOT__。少了这一
+#    行插件装上也什么都不发生，宿主日志里一个字都没有。
+#
+# 2. 宿主半边（`threadharbor-mermaid-asset`）：`/threadharbor/mermaid.js` 这条
+#    exact 静态资源路由，供浏览器半边第一次遇到图时懒加载 mermaid 运行时。走独立
+#    子路径行（DSH 把子路径行当宿主行处理），把 3.5 MB 运行时从客户端包里剥出去。
 
 - insert:
     - id: chat-area-client
       name: '@goodjin2/dsh-chat-area'
+    - id: threadharbor-mermaid-asset
+      name: '@goodjin2/dsh-chat-area/mermaid-asset'

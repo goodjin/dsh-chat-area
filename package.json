@@ -15,6 +15,10 @@
       "default": "./lib/client.js"
     },
     "./package.json": "./package.json",
+    "./mermaid-asset": {
+      "types": "./src/mermaid-asset.ts",
+      "default": "./src/mermaid-asset.ts"
+    },
     "./session-id-bar": {
       "types": "./src/session-id-bar/index.ts",
       "default": "./src/session-id-bar/index.ts"
@@ -30,6 +34,9 @@
     "build:client": "npm run build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "mermaid": "^11.16.0"
   },
   "dsh": {
     "bundle": {
@@ -54,6 +61,7 @@
     "@deepseek-ai/dsh-client-ui-conversation": "0.2.0-rc.2",
     "@deepseek-ai/dsh-client-ui-chat": "0.2.0-rc.2",
     "@deepseek-ai/dsh-client-ui-primitives": "0.2.0-rc.2",
+    "@types/node": "^24.0.0",
     "@types/react": "^18.2.0",
     "react": "^18.2.0",
     "tsdown": "^0.15.0",
