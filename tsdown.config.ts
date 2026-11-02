@@ -56,8 +56,11 @@ export default defineConfig({
       if (!virtualId.startsWith(cssPrefix)) return null
       const file = virtualId.slice(cssPrefix.length, -cssSuffix.length)
       this.addWatchFile(file)
+      // lightningcss 的 [hash] 以文件名为种子：传绝对路径会让产物类名哈希随构建目录
+      // 变化（.worktrees/... vs 主仓 → 同一 CSS 出不同 hash）。chat-area 的 module.css
+      // 基名唯一，传基名即让哈希只由内容决定、跨目录可复现。
       const result = transform({
-        filename: file,
+        filename: basename(file),
         code: await readFile(file),
         cssModules: { pattern: '[hash]_[local]' },
         minify: true,
