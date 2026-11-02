@@ -170,6 +170,7 @@ export function registerConversationSurfaces(ctx: Surface): void {
   let removeRenderer: (() => void) | undefined
   let originalComponent: unknown
   let installing = false
+  let seatDeclared = false
   const attachRenderer = (): void => {
     if (installing) return
     const entry = slots.entries(NODE_SLOT).find(
@@ -182,11 +183,18 @@ export function registerConversationSurfaces(ctx: Surface): void {
       originalComponent = entry.component
       const Native = entry.component as ComponentType<AssistantStepProps>
       const Renderer = makeAssistantStepWrapper(Native, { slots, dshT, readers })
+      // 声明 ACP 段渲染器座位：acp-agent 把 AcpProcessBlock 注册进这里，wrap 渲染时按座位名
+      // 取来用。座位**必须先声明**——register 契约里未声明的座位 register 会抛、specDynamic
+      // 返回 undefined，acp-agent 的 inject 回调在声明前永不触发（静默不渲染，ACP 段退回原生）。
+      // 只在首次声明一次：原生渲染器变化时本 wrap 会重注册，而重复声明同一座位 register 会抛
+      // 「already declared」。座位声明不随 entry dispose 撤销，故声明一次即长期有效。
       removeRenderer = slots.register({
         name: NODE_SLOT, key: NODE_KEY, priority: WRAP_PRIORITY,
+        ...(seatDeclared ? {} : { children: { [SEGMENT_RENDERER_SLOT]: { kind: 'list', scope: 'session' } } }),
         ...(entry.locale === undefined ? {} : { locale: entry.locale }),
         ...(entry.inject === undefined ? {} : { inject: entry.inject }),
       }, Renderer)
+      seatDeclared = true
     } finally { installing = false }
   }
   const unsubscribeRenderer = slots.subscribe(NODE_SLOT, attachRenderer)

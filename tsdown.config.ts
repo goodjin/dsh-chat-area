@@ -64,6 +64,10 @@ export default defineConfig({
       })
       const classes: Record<string, string> = {}
       for (const [local, value] of Object.entries(result.exports ?? {})) classes[local] = value.name
+      // lightningcss 的 exports 键序不确定，直接序列化会让每次重建产物的类名映射对象键序
+      // 都变（md5 漂移、无意义 diff、内容未变却触发热替换）。按键排序后再输出，产物可复现。
+      const sortedClasses: Record<string, string> = {}
+      for (const key of Object.keys(classes).sort()) sortedClasses[key] = classes[key]
       const css = result.code.toString()
       const tag = `${id}/${basename(file)}`
       return [
@@ -76,7 +80,7 @@ export default defineConfig({
         '  element.textContent = css;',
         '  document.head.appendChild(element);',
         '}',
-        `export default ${JSON.stringify(classes)};`,
+        `export default ${JSON.stringify(sortedClasses)};`,
       ].join('\n')
     },
   }],
