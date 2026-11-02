@@ -1,0 +1,4 @@
+node_modules/
+# tsc 的中间产物：只有 lib/client.js（浏览器产物）入库
+lib/src/
+lib/tests/

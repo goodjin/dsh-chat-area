@@ -1,27 +1,18 @@
 /**
- * Session ID bar: display the short session ID with a copy button in the
- * conversation header utilities row.
+ * 「会话 ID 条」模块的对外出口。
  *
- * Registered into: conversation.session.header.utilities (list, session scope)
- * The framework passes the sessionId as the first inject argument.
+ * 真正的实现在 register.ts；浏览器入口（src/index.ts）直接用它。这个文件保留
+ * 是为了 package.json 里的 `./session-id-bar` 子路径依旧可用（别人按子路径引用
+ * 时拿到的是同一份实现，而不是另一套占位）。
  */
 
-export const name = 'threadharbor-session-id-bar'
-export const inject = ['slots'] as const
-
-export { registerSessionIdBar } from './register.js'
-
-import type { PluginContext } from '../index.js'
-
-export function applySessionIdBar(ctx: PluginContext): void {
-  const log = ctx.logger(name)
-
-  ctx.effect(() => {
-    try {
-      registerSessionIdBar(ctx.slots)
-      log.info('session id bar: registered')
-    } catch (error: unknown) {
-      log.warn(`session id bar: registration failed — ${error instanceof Error ? error.message : String(error)}`)
-    }
-  }, 'threadharbor: session id bar')
-}
+export {
+  PANEL_ID,
+  PANEL_ORDER,
+  SLOT,
+  SessionIdBar,
+  registerSessionIdBar,
+  sessionBarView,
+  shortSessionId,
+} from './register.js'
+export type { HeaderSlots, SessionBarViewInput, SessionIdBarProps } from './register.js'

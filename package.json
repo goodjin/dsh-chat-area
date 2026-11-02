@@ -1,49 +1,42 @@
 {
   "name": "@goodjin2/dsh-chat-area",
-  "version": "0.1.0",
-  "description": "DSH plugin: in-conversation file reading/editing, Mermaid rendering, session ID display, and answer editing",
+  "version": "0.2.0",
+  "description": "DSH plugin: short session ID with a copy button in the conversation header",
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./src/entry.ts",
+  "types": "./src/entry.ts",
   "exports": {
     ".": {
+      "types": "./src/entry.ts",
+      "default": "./src/entry.ts"
+    },
+    "./client": {
       "types": "./src/index.ts",
-      "default": "./src/index.ts"
-    },
-    "./file-view": {
-      "types": "./src/file-view/index.ts",
-      "default": "./src/file-view/index.ts"
-    },
-    "./mermaid": {
-      "types": "./src/mermaid/index.ts",
-      "default": "./src/mermaid/index.ts"
+      "default": "./lib/client.js"
     },
     "./package.json": "./package.json",
     "./session-id-bar": {
       "types": "./src/session-id-bar/index.ts",
       "default": "./src/session-id-bar/index.ts"
-    },
-    "./answer-edit": {
-      "types": "./src/answer-edit/index.ts",
-      "default": "./src/answer-edit/index.ts"
     }
   },
   "files": [
     "src",
-    "lib"
+    "lib",
+    "cordis.patch.yml"
   ],
   "scripts": {
-    "build": "tsdown",
+    "build": "tsc -p tsconfig.json && tsdown",
+    "build:client": "npm run build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
     "client": {
-      "inject": [
-        "slots",
-        "remote",
-        "uiConversation"
-      ],
+      "inject": [],
       "platform": "web"
     }
   },
@@ -63,7 +56,7 @@
     "@deepseek-ai/dsh-client-ui-primitives": "0.2.0-rc.2",
     "@types/react": "^18.2.0",
     "react": "^18.2.0",
-    "tsdown": "^0.5.0",
+    "tsdown": "^0.15.0",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
   },

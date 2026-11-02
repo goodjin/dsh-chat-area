@@ -1,0 +1,15 @@
+# @goodjin2/dsh-chat-area 的挂载配置。
+#
+# 本包只有浏览器半边（会话头部那枚短会话 ID + 复制按钮）；宿主侧的入口
+# （src/entry.ts）是个空壳，存在的唯一理由就是这一行。
+#
+# 行名必须是**裸包名**。DSH 不按 package.json 的 dsh.client 自动装载浏览器包：
+# 客户端模块系统扫的是 Loader 的行，只有 name 恰好等于包名时那个包才会进
+# window.__DSH_BOOT__（`ClientModuleRegistry.resolveMeta` 经 `locatePkgJson`
+# 解析；带子路径的名字被判成「不是客户端行」）。少了这一行，插件装上也什么都不
+# 发生，宿主日志里一个字都没有——2026-11-02 在 @goodjin2/dsh-acp-agent 上刚刚
+# 现场踩过一次，整块浏览器界面（含设置里的屏蔽页）就是这样安静消失的。
+
+- insert:
+    - id: chat-area-client
+      name: '@goodjin2/dsh-chat-area'
