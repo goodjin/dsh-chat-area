@@ -1,5 +1,5 @@
 {
-  "name": "@threadharbor/dsh-chat-area",
+  "name": "@goodjin2/dsh-chat-area",
   "version": "0.1.0",
   "description": "DSH plugin: in-conversation file reading/editing, Mermaid rendering, session ID display, and answer editing",
   "type": "module",

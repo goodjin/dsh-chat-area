@@ -13,7 +13,7 @@ DSH plugin for generic conversation-area enhancements. Works regardless of which
 ## Installation
 
 ```sh
-npm install @threadharbor/dsh-chat-area
+npm install @goodjin2/dsh-chat-area
 ```
 
 ## DSH Configuration
@@ -21,7 +21,7 @@ npm install @threadharbor/dsh-chat-area
 ```json
 {
   "plugins": [
-    "@threadharbor/dsh-chat-area",
+    "@goodjin2/dsh-chat-area",
     "@threadharbor/dsh-acp-agent-ui"
   ]
 }
