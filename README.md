@@ -1,4 +1,4 @@
-# dsh-conversation-files
+# dsh-chat-area
 
 DSH plugin for generic conversation-area enhancements. Works regardless of which agent is running.
 
@@ -13,7 +13,7 @@ DSH plugin for generic conversation-area enhancements. Works regardless of which
 ## Installation
 
 ```sh
-npm install @threadharbor/dsh-conversation-files
+npm install @threadharbor/dsh-chat-area
 ```
 
 ## DSH Configuration
@@ -21,7 +21,7 @@ npm install @threadharbor/dsh-conversation-files
 ```json
 {
   "plugins": [
-    "@threadharbor/dsh-conversation-files",
+    "@threadharbor/dsh-chat-area",
     "@threadharbor/dsh-acp-agent-ui"
   ]
 }

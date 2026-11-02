@@ -1,5 +1,5 @@
 {
-  "name": "@threadharbor/dsh-conversation-files",
+  "name": "@threadharbor/dsh-chat-area",
   "version": "0.1.0",
   "description": "DSH plugin: in-conversation file reading/editing, Mermaid rendering, session ID display, and answer editing",
   "type": "module",
@@ -73,6 +73,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/threadharbor/dsh-conversation-files.git"
+    "url": "git+https://github.com/threadharbor/dsh-chat-area.git"
   }
 }
