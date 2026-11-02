@@ -1,7 +1,7 @@
 {
   "name": "@threadharbor/dsh-conversation-files",
   "version": "0.1.0",
-  "description": "DSH plugin suite: in-conversation file reading/editing, Mermaid rendering, ACP process view, interrupted turn recovery, and lost input recovery",
+  "description": "DSH plugin suite: in-conversation file reading/editing, Mermaid rendering, ACP process view, interrupted/lost turn recovery, and session ID display",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -30,7 +30,11 @@
       "types": "./src/lost-input/index.ts",
       "default": "./src/lost-input/index.ts"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./session-id-bar": {
+      "types": "./src/session-id-bar/index.ts",
+      "default": "./src/session-id-bar/index.ts"
+    }
   },
   "files": [
     "src",
