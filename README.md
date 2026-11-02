@@ -22,7 +22,7 @@ npm install @goodjin2/dsh-chat-area
 {
   "plugins": [
     "@goodjin2/dsh-chat-area",
-    "@threadharbor/dsh-acp-agent-ui"
+    "@goodjin2/dsh-acp-agent-ui"
   ]
 }
 ```
