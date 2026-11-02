@@ -6,36 +6,44 @@
  * 没套这层壳、id 写错、或者 factory 一执行就抛，页面在下次启动时会在装配审计里
  * 直接把整页判成失败——不是少一个功能，是打不开界面。
  *
- * 所以这里按页面的方式执行一遍产物：登记工厂 → 用页面给的 require 取 react →
- * 调 apply → 看它有没有把会话 ID 条注册进头部工具排。
+ * 所以这里按页面的方式执行一遍产物：把 lib/client.js 当文本读进来、在只给了
+ * `window` 的沙箱里求值（不走 vitest 模块图，免得它去解析产物里对页面模块的
+ * require），取出 factory → 用页面给的 require 取 react / primitives → 调 apply →
+ * 看它有没有把会话 ID 条与文件阅读区注册进各自的座位。
  */
 
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { PANEL_ID, SLOT } from '../src/session-id-bar/register.ts'
+import { MARKDOWN_TAIL_ID } from '../src/markdown-turn.tsx'
 
-/** 页面模块表里的一行。 */
-type LoadedRow = { id: string; factory: (require: (specifier: string) => unknown) => Record<string, unknown> }
+const BUNDLE_PATH = fileURLToPath(new URL('../lib/client.js', import.meta.url))
+
+/** 把产物当文本求值，取出它登记的工厂行（模拟 window.__ModuleLoader__.load）。 */
+function loadBundleRow(): { id: string; factory: (require: (specifier: string) => unknown) => Record<string, unknown> } {
+  const src = readFileSync(BUNDLE_PATH, 'utf8')
+  const rows: { id: string; factory: (require: (specifier: string) => unknown) => Record<string, unknown> }[] = []
+  const sandboxWindow = { __ModuleLoader__: { load: (row: typeof rows[number]) => { rows.push(row) } } }
+  // 产物顶层只引用 window（factory 体内的 require/module/exports 由工厂参数提供）。
+  const evaluate = new Function('window', src)
+  evaluate(sandboxWindow)
+  expect(rows.length, '产物必须调用一次 window.__ModuleLoader__.load').toBe(1)
+  return rows[0]!
+}
 
 describe('lib/client.js 是页面能装的产物', () => {
-  it('登记了正确的 id，factory 执行后 apply 能注册会话 ID 条', async () => {
-    const rows: LoadedRow[] = []
-    const globalWindow = { __ModuleLoader__: { load: (row: LoadedRow) => { rows.push(row) } } }
-    const previous = (globalThis as { window?: unknown }).window
-    ;(globalThis as { window?: unknown }).window = globalWindow
-    try {
-      const bundle = '../lib/client.js'
-      await import(bundle)
-    } finally {
-      ;(globalThis as { window?: unknown }).window = previous
-    }
+  it('登记了正确的 id，factory 执行后 apply 能注册会话 ID 条', () => {
+    const row = loadBundleRow()
+    expect(row.id).toBe('@goodjin2/dsh-chat-area')
 
-    expect(rows.length, '产物必须调用一次 window.__ModuleLoader__.load').toBe(1)
-    expect(rows[0]?.id).toBe('@goodjin2/dsh-chat-area')
-
-    // 页面给的 require 只能取到模块表里有的东西；产物除了 react 不该再要别的。
-    const react = await import('react')
-    const loaded = rows[0]?.factory((specifier: string) => {
+    // 页面给的 require 只能取到模块表里有的东西：react 与页面提供的 primitives
+    // （答案卡片 / 文件阅读区用的图标与组件）。其余外置模块不该再要。
+    const react = { createElement: () => null } as unknown as object
+    const primitivesStub = new Proxy({}, { get: () => () => null })
+    const loaded = row.factory((specifier: string) => {
       if (specifier === 'react' || specifier === 'react/jsx-runtime') return react
+      if (specifier === '@deepseek-ai/dsh-client-ui-primitives') return primitivesStub
       throw new Error(`产物请求了模块表外的模块：${specifier}`)
     })
     expect(typeof loaded?.apply, '产物必须导出 apply').toBe('function')
@@ -46,13 +54,23 @@ describe('lib/client.js 是页面能装的产物', () => {
       slots: {
         inject: (key: string, callback: () => unknown) => { injected.push(key); return callback() },
         register: (options: Record<string, unknown>) => { registered.push(options); return () => {} },
+        // 文件阅读区与答案卡片 wrap 要在订阅回调里抓原生渲染器再重注册；
+        // 假座位立即回调，并喂一个原生 assistant-step 渲染器。
+        entries: () => [{ options: { key: 'assistant-step', priority: 0 }, component: () => null }],
+        subscribe: (_key: string, callback: () => void) => { callback(); return () => {} },
       },
       logger: () => ({ info: () => {}, warn: () => {} }),
       effect: () => () => {},
       get: () => undefined,
     }
     ;(loaded?.apply as (ctx: unknown) => void)(ctx)
-    expect(injected).toEqual([SLOT])
-    expect(registered.map(options => options.id)).toEqual([PANEL_ID])
+    // 会话 ID 条注入头部工具排；文件阅读区注入轮次尾座位。
+    expect(injected).toContain(SLOT)
+    expect(injected).toContain('conversation.chat.turnTail')
+    // 会话 ID 条、文件阅读区都注册了；答案卡片包住了 assistant-step 渲染位。
+    const registeredIds = registered.map(options => options.id)
+    expect(registeredIds).toContain(PANEL_ID)
+    expect(registeredIds).toContain(MARKDOWN_TAIL_ID)
+    expect(registered.some(options => options.key === 'assistant-step')).toBe(true)
   })
 })

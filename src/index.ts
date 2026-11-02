@@ -5,20 +5,26 @@
  * - 会话头部右端的「短会话 ID + 复制」（本包独有）；
  * - Mermaid 图渲染（扫 DOM 的 ```mermaid 代码块，画成 SVG，可切「图表 / 源码」）；
  *   运行时经宿主半边 `/threadharbor/mermaid.js` 按需懒加载，不内联进客户端包；
- * - 答案卡片、会话尾部文件卡片（随后续批次从 acp-agent 迁入）。
+ * - 答案卡片、会话尾部文件阅读区（`conversation-surfaces.tsx`）。
  *
- * 历史上这三（除会话 ID 条外）曾在 acp-agent 的浏览器半边实现，2026-11 迁回本包。
+ * 历史上这些曾在 `@goodjin2/dsh-acp-agent` 的浏览器半边实现，2026-11 迁回本包。
+ * ACP 专属的进程段渲染仍留在 acp-agent，经座位 `conversation.chat.node.acp-segment-renderer`
+ * 接进本包的 `assistant-step` 包装（见 conversation-surfaces.tsx 的说明）。
  */
 
 import { registerSessionIdBar } from './session-id-bar/register.js'
 import { startMermaidDiagrams } from './mermaid.ts'
-import { fallbackT, NAMESPACE, zh } from './locales.ts'
+import { registerConversationSurfaces } from './conversation-surfaces.tsx'
+import { fallbackT } from './locales.ts'
 
 /** Loader 行与诊断里看到的插件名。 */
 export const name = 'threadharbor-chat-area'
 
-/** 依赖：插槽表（会话 ID 条）与 locale 注册中心（mermaid 文案）。 */
-export const inject = ['slots', 'locale'] as const
+/**
+ * 依赖：插槽表、locale 注册中心（文案）、remote 服务（文件阅读区读 workspaceFiles /
+ * session）。缺任一，对应功能安静退回，不拖累其它。
+ */
+export const inject = ['slots', 'locale', 'remote', 'remote.session', 'remote.workspaceFiles'] as const
 
 export interface PluginContext {
   logger(name: string): { info(message: string): void; warn(message: string): void }
@@ -49,20 +55,8 @@ function safeLogger(ctx: PluginContext): { info(message: string): void; warn(mes
   }
 }
 
-/** 把本包文案装进 host 的 locale 注册中心；拿不到就安静退回，不拖累注册。 */
-function registerLocales(ctx: PluginContext): void {
-  try {
-    const register = ctx.locale?.register
-    if (typeof register !== 'function') return
-    register({ [NAMESPACE]: { zh: { ...zh }, en: {} } })
-  } catch {
-    // locale 注册失败不该连累其它功能
-  }
-}
-
 export function apply(ctx: PluginContext): void {
   const log = safeLogger(ctx)
-  registerLocales(ctx)
   try {
     registerSessionIdBar(ctx.slots)
     log.info('session id bar: registered')
@@ -76,5 +70,12 @@ export function apply(ctx: PluginContext): void {
     log.info('mermaid: registered')
   } catch (error: unknown) {
     log.warn(`mermaid: registration failed — ${error instanceof Error ? error.message : String(error)}`)
+  }
+  try {
+    // 答案卡片 + 会话尾部文件阅读区；顺带注册本包 locale 字典。
+    registerConversationSurfaces(ctx)
+    log.info('conversation surfaces: registered')
+  } catch (error: unknown) {
+    log.warn(`conversation surfaces: registration failed — ${error instanceof Error ? error.message : String(error)}`)
   }
 }

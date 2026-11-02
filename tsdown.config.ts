@@ -8,15 +8,30 @@
  *
  * 输入是 tsc 的中间产物（lib/src，NodeNext 能把源码里的 `./x.js` 指到 `x.ts`），
  * 因为 rolldown 不会替我们把 `.js` 后缀的引用改写到 `.ts` 源文件。
+ *
+ * `.module.css` 用 lightningcss 在打包时转成「注入 <style> + 类名映射」，
+ * 与 acp-agent 同款（客户端包不内联构建期 CSS 外链，运行时注入）。
  */
 
+import { readFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { basename } from 'node:path'
 import { isAbsolute, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { transform } from 'lightningcss'
+import { defineConfig } from 'tsdown'
 
 const id = '@goodjin2/dsh-chat-area'
 const root = fileURLToPath(new URL('.', import.meta.url))
+const cssPrefix = '\0threadharbor-css:'
+const cssSuffix = '.mjs'
+const externals = new Set([
+  'react',
+  'react/jsx-runtime',
+  '@deepseek-ai/dsh-client-ui-primitives',
+])
 
-export default {
+export default defineConfig({
   entry: { client: `${root}lib/src/index.js` },
   outDir: `${root}lib`,
   format: 'cjs',
@@ -27,7 +42,44 @@ export default {
   minify: true,
   clean: false,
   // 页面模块表里已有 react；打进产物会出现第二份 React 实例。
-  external: ['react', 'react/jsx-runtime'],
+  external: [...externals],
+  noExternal: (specifier: string) => !externals.has(specifier),
+  plugins: [{
+    name: 'threadharbor-css-modules',
+    resolveId(source: string, importer?: string) {
+      if (!source.endsWith('.module.css') || importer === undefined) return null
+      const emitted = new URL(source, `file://${importer}`).pathname
+      const file = existsSync(emitted) ? emitted : emitted.replace('/lib/src/', '/src/')
+      return `${cssPrefix}${file}${cssSuffix}`
+    },
+    async load(virtualId: string) {
+      if (!virtualId.startsWith(cssPrefix)) return null
+      const file = virtualId.slice(cssPrefix.length, -cssSuffix.length)
+      this.addWatchFile(file)
+      const result = transform({
+        filename: file,
+        code: await readFile(file),
+        cssModules: { pattern: '[hash]_[local]' },
+        minify: true,
+      })
+      const classes: Record<string, string> = {}
+      for (const [local, value] of Object.entries(result.exports ?? {})) classes[local] = value.name
+      const css = result.code.toString()
+      const tag = `${id}/${basename(file)}`
+      return [
+        `const css = ${JSON.stringify(css)};`,
+        `const tag = ${JSON.stringify(tag)};`,
+        "if (typeof document !== 'undefined' && document.querySelector('style[data-plugin-css=' + JSON.stringify(tag) + ']') === null) {",
+        "  const element = document.createElement('style');",
+        `  element.dataset.plugin = ${JSON.stringify(id)};`,
+        '  element.dataset.pluginCss = tag;',
+        '  element.textContent = css;',
+        '  document.head.appendChild(element);',
+        '}',
+        `export default ${JSON.stringify(classes)};`,
+      ].join('\n')
+    },
+  }],
   outputOptions: {
     inlineDynamicImports: true,
     entryFileNames: 'client.js',
@@ -36,4 +88,4 @@ export default {
     intro: 'var module = { exports: {} }; var exports = module.exports;',
     sourcemapPathTransform: (source: string) => isAbsolute(source) ? relative(root, source).replaceAll('\\', '/') : source,
   },
-}
+})

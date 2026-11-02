@@ -16,12 +16,73 @@ export const NAMESPACE = 'threadharborChatArea'
 
 export type ChatAreaLocaleKey =
   | 'mermaid.label' | 'mermaid.diagram' | 'mermaid.source' | 'mermaid.toggleNamed'
+  | 'answerCard.copy' | 'answerCard.copied' | 'answerCard.edit'
+  | 'markdownTurn.loading' | 'markdownTurn.error' | 'markdownTurn.retry'
+  | 'markdownTurn.truncated' | 'markdownTurn.collapse' | 'markdownTurn.expand'
+  | 'markdownTurn.collapseAria' | 'markdownTurn.expandAria'
+  | 'markdownTurn.openTitle' | 'markdownTurn.openDefault' | 'markdownTurn.openAppsError'
+  | 'markdownTurn.openMore' | 'markdownTurn.defaultOpenLink' | 'markdownTurn.linkOpenRight'
+  | 'markdownTurn.linkOpenBrowser' | 'markdownTurn.openFolder' | 'markdownTurn.openError'
+  | 'markdownTurn.revealError' | 'markdownTurn.copy' | 'markdownTurn.copied'
+  | 'markdownTurn.code' | 'markdownTurn.wrap' | 'markdownTurn.unwrap'
+  | 'markdownTurn.footnotes' | 'markdownTurn.send' | 'markdownTurn.sendToSession'
+  | 'markdownTurn.edit' | 'markdownTurn.cancel' | 'markdownTurn.comment'
+  | 'markdownTurn.commentPlaceholder' | 'markdownTurn.commentSend' | 'markdownTurn.commentedAs'
+  | 'markdownTurn.commentRemove' | 'markdownTurn.composePlaceholder' | 'markdownTurn.sendFailed'
+  | 'markdownTurn.newSession' | 'markdownTurn.newSessionPromptHeader' | 'markdownTurn.newSessionFailed'
+  | 'markdownTurn.copyFailed' | 'markdownTurn.filesAll' | 'markdownTurn.filesAllAria'
+  | 'markdownTurn.filesCollapseAria'
 
 export const zh: Record<ChatAreaLocaleKey, string> = {
   'mermaid.label': 'Mermaid',
   'mermaid.diagram': '图表',
   'mermaid.source': '源码',
   'mermaid.toggleNamed': '切换 Mermaid 图与源码',
+  'answerCard.copy': '复制结果',
+  'answerCard.copied': '已复制',
+  'answerCard.edit': '编辑',
+  'markdownTurn.loading': '正在读取文档…',
+  'markdownTurn.error': '文档没有读出来',
+  'markdownTurn.retry': '重试',
+  'markdownTurn.truncated': '文档较长，这里只显示前面一部分',
+  'markdownTurn.collapse': '收起',
+  'markdownTurn.expand': '展开',
+  'markdownTurn.collapseAria': '收起 {name}',
+  'markdownTurn.expandAria': '展开 {name}',
+  'markdownTurn.openTitle': '用 {app} 打开',
+  'markdownTurn.openDefault': '{app}（默认）',
+  'markdownTurn.openAppsError': '无法获取应用列表',
+  'markdownTurn.openMore': '更多打开方式',
+  'markdownTurn.defaultOpenLink': '默认打开方式',
+  'markdownTurn.linkOpenRight': '右侧打开',
+  'markdownTurn.linkOpenBrowser': '浏览器打开',
+  'markdownTurn.openFolder': '打开文件夹',
+  'markdownTurn.openError': '打开失败，请重试',
+  'markdownTurn.revealError': '文件夹没有打开',
+  'markdownTurn.copy': '复制',
+  'markdownTurn.copied': '已复制',
+  'markdownTurn.code': '代码',
+  'markdownTurn.wrap': '换行',
+  'markdownTurn.unwrap': '取消换行',
+  'markdownTurn.footnotes': '脚注',
+  'markdownTurn.send': '发送',
+  'markdownTurn.sendToSession': '发送到会话',
+  'markdownTurn.edit': '编辑',
+  'markdownTurn.cancel': '取消',
+  'markdownTurn.comment': '评论',
+  'markdownTurn.commentPlaceholder': '写下你的评论…',
+  'markdownTurn.commentSend': '发送评论',
+  'markdownTurn.commentedAs': '这是用户对此段话的评论',
+  'markdownTurn.commentRemove': '删除评论',
+  'markdownTurn.composePlaceholder': '输入要加入会话的内容…',
+  'markdownTurn.sendFailed': '发送失败，请重试',
+  'markdownTurn.newSession': '新建会话',
+  'markdownTurn.newSessionPromptHeader': '文件路径：{path}',
+  'markdownTurn.newSessionFailed': '新建会话失败，请重试',
+  'markdownTurn.copyFailed': '复制失败，请重试',
+  'markdownTurn.filesAll': '全部 {count} 个文件',
+  'markdownTurn.filesAllAria': '展开全部 {count} 个文件',
+  'markdownTurn.filesCollapseAria': '收起文件列表',
 }
 
 const en: Record<ChatAreaLocaleKey, string> = {
@@ -29,6 +90,51 @@ const en: Record<ChatAreaLocaleKey, string> = {
   'mermaid.diagram': 'Diagram',
   'mermaid.source': 'Source',
   'mermaid.toggleNamed': 'Switch between the Mermaid diagram and its source',
+  'answerCard.copy': 'Copy result',
+  'answerCard.copied': 'Copied',
+  'answerCard.edit': 'Edit',
+  'markdownTurn.loading': 'Reading the document…',
+  'markdownTurn.error': 'The document did not load',
+  'markdownTurn.retry': 'Retry',
+  'markdownTurn.truncated': 'This document is long; only the first part is shown',
+  'markdownTurn.collapse': 'Collapse',
+  'markdownTurn.expand': 'Expand',
+  'markdownTurn.collapseAria': 'Collapse {name}',
+  'markdownTurn.expandAria': 'Expand {name}',
+  'markdownTurn.openTitle': 'Open in {app}',
+  'markdownTurn.openDefault': '{app} (default)',
+  'markdownTurn.openAppsError': 'Could not load applications',
+  'markdownTurn.openMore': 'More ways to open',
+  'markdownTurn.defaultOpenLink': 'Default open mode',
+  'markdownTurn.linkOpenRight': 'Open on the right',
+  'markdownTurn.linkOpenBrowser': 'Open in browser',
+  'markdownTurn.openFolder': 'Open folder',
+  'markdownTurn.openError': 'Could not open. Try again.',
+  'markdownTurn.revealError': 'The folder did not open',
+  'markdownTurn.copy': 'Copy',
+  'markdownTurn.copied': 'Copied',
+  'markdownTurn.code': 'Code',
+  'markdownTurn.wrap': 'Wrap',
+  'markdownTurn.unwrap': 'Unwrap',
+  'markdownTurn.footnotes': 'Footnotes',
+  'markdownTurn.send': 'Send',
+  'markdownTurn.sendToSession': 'Send to conversation',
+  'markdownTurn.edit': 'Edit',
+  'markdownTurn.cancel': 'Cancel',
+  'markdownTurn.comment': 'Comment',
+  'markdownTurn.commentPlaceholder': 'Write a comment…',
+  'markdownTurn.commentSend': 'Send comment',
+  'markdownTurn.commentedAs': 'The user’s comment on this passage',
+  'markdownTurn.commentRemove': 'Delete comment',
+  'markdownTurn.composePlaceholder': 'Type content to add to the conversation…',
+  'markdownTurn.sendFailed': 'Could not send. Try again.',
+  'markdownTurn.newSession': 'New session',
+  'markdownTurn.newSessionPromptHeader': 'File path: {path}',
+  'markdownTurn.newSessionFailed': 'Could not start a new session. Try again.',
+  'markdownTurn.copyFailed': 'Could not copy. Try again.',
+  'markdownTurn.filesAll': 'All {count} files',
+  'markdownTurn.filesAllAria': 'Show all {count} files',
+  'markdownTurn.filesCollapseAria': 'Collapse the file list',
 }
 
 /** `{name}` 形式的参数插值；模板里没有对应参数时原样保留占位符。 */

@@ -121,10 +121,14 @@ describe('浏览器入口', () => {
     get: () => undefined,
   })
 
-  it('apply 只注册这一格，并且不重复注册', () => {
+  it('apply 注册会话 ID 条与文件阅读区，且不重复注册', () => {
     const fake = fakeSlots()
     apply(ctxOf(fake.slots))
-    expect(fake.calls).toEqual([`inject:${SLOT}`, 'register'])
+    // 会话 ID 条（头部工具排）+ 会话尾部文件阅读区（轮次尾座位）各 inject 一次、register 一次。
+    expect(fake.calls).toEqual([
+      `inject:${SLOT}`, 'register',
+      'inject:conversation.chat.turnTail', 'register',
+    ])
   })
 
   it('注册失败只记一条警告，不往上抛', () => {
