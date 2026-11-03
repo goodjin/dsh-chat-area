@@ -26,6 +26,18 @@ type UtilitiesSlotHost = {
 /** 注册项在会话头部工具行里的 key；只用自己的 id，不去占别人的格子。 */
 export const PANEL_ID = 'chat-area-session-id'
 
+/**
+ * 词条解析：框给的 `t` 解不出来时会**原样返回键名**（词典没注册、语言缺失），
+ * 那时退回本地词典——界面上不能出现 `panel.sessionBar.copy` 这种东西。
+ * @param t - 框架给的翻译座位。
+ * @param key - 词条键。
+ * @returns 要显示的文字。
+ */
+export function textOf(t: RuntimeT, key: string): string {
+  const value = t(key)
+  return value === key ? fallbackT(key) : value
+}
+
 /** 短 ID 显示（完整 ID 在 title 属性里） */
 export function shortId(sessionId: string): string {
   return sessionId.replace(/^session-/, '').slice(0, 8)
@@ -57,9 +69,9 @@ export function SessionIdBar({ sessionId, t = fallbackT }: BarProps) {
       'data-action': 'copy-session-id',
       onClick: copy,
       style: { border: 'none', background: 'transparent', cursor: 'pointer', padding: '2px 4px', borderRadius: '4px' },
-    }, t('panel.sessionBar.copy')),
+    }, textOf(t, 'panel.sessionBar.copy')),
     state === 'idle' ? null : createElement('span', { 'data-copy-state': true },
-      state === 'copied' ? t('panel.sessionBar.copied') : `${t('panel.sessionBar.copyFailed')}${state.failed}`),
+      state === 'copied' ? textOf(t, 'panel.sessionBar.copied') : `${textOf(t, 'panel.sessionBar.copyFailed')}${state.failed}`),
   )
 }
 

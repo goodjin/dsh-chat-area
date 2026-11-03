@@ -89,7 +89,7 @@ export const zh: Record<ChatAreaLocaleKey, string> = {
   'markdownTurn.filesCollapseAria': '收起文件列表',
 }
 
-const en: Record<ChatAreaLocaleKey, string> = {
+export const en: Record<ChatAreaLocaleKey, string> = {
   'mermaid.label': 'Mermaid',
   'mermaid.diagram': 'Diagram',
   'mermaid.source': 'Source',

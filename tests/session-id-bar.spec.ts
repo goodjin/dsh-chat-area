@@ -12,7 +12,7 @@
 
 import { describe, expect, it } from 'vitest'
 import type { ReactElement } from 'react'
-import { PANEL_ID, SessionIdBar, registerSessionIdBar, shortId } from '../src/session-id-bar/index.ts'
+import { PANEL_ID, SessionIdBar, registerSessionIdBar, shortId, textOf } from '../src/session-id-bar/index.ts'
 import { NAMESPACE } from '../src/locales.ts'
 
 /** 会话头部工具行这个插槽名（DSH 的 ui-conversation 声明，会话作用域）。 */
@@ -96,5 +96,18 @@ describe('注册进会话头部的工具行', () => {
     registerSessionIdBar(fake.slots)
     const inject = fake.options?.inject as (sessionId: string) => Record<string, unknown>
     expect(inject('session-abc')).toEqual({ sessionId: 'session-abc' })
+  })
+})
+
+describe('词条解析：框架 t 解不出来时不画键名', () => {
+  it('t 返回键名本身时退回本地词典', () => {
+    const echo = (key: string): string => key
+    expect(textOf(echo, 'panel.sessionBar.copy')).toBe('复制')
+    expect(textOf(echo, 'panel.sessionBar.copied')).toBe('已复制')
+  })
+
+  it('t 能给出译文时用译文', () => {
+    const known = (key: string): string => (key === 'panel.sessionBar.copy' ? 'Copy' : key)
+    expect(textOf(known, 'panel.sessionBar.copy')).toBe('Copy')
   })
 })

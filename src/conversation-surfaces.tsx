@@ -31,7 +31,7 @@ import { AnswerCard } from './answer-card.tsx'
 import { createMarkdownTurnReaders } from './markdown-turn-sources.ts'
 import type { MarkdownTurnReaders } from './markdown-turn-sources.ts'
 import { registerMarkdownTurn } from './markdown-turn.tsx'
-import { fallbackT, NAMESPACE, zh } from './locales.ts'
+import { en, fallbackT, NAMESPACE, zh } from './locales.ts'
 import type { RuntimeT } from './locales.ts'
 
 /**
@@ -162,9 +162,18 @@ function registerLocales(ctx: Surface): void {
       ? (service as { register?: unknown }).register
       : undefined
     if (typeof register !== 'function') return
-    (register as (dicts: Record<string, unknown>) => void)({ [NAMESPACE]: { zh: { ...zh }, en: {} } })
-  } catch {
-    // locale 注册失败不该连累其它功能
+    // 签名是 `register(namespace, { locale: dict })`。早先按 `register({ [NS]: {...} })`
+    // 单参数调用：namespace 位置收到对象、第二参数 undefined，内部
+    // `Object.entries(undefined)` 抛 TypeError 被这里吞掉，于是座位的 `t` 解不出词条，
+    // 界面上显示成 `panel.sessionBar.copy` 这种键名（2026-11-03 现场）。
+    const dispose = (register as (ns: string, dicts: Record<string, Record<string, string>>) => unknown)
+      .call(service, NAMESPACE, { zh: { ...zh }, en: { ...en } })
+    if (typeof dispose === 'function' && typeof ctx.effect === 'function') {
+      ctx.effect(() => dispose as () => void, 'threadharbor-chat-area: locale dictionaries')
+    }
+  } catch (error) {
+    // 重复注册（同一命名空间已有该语言）也会抛：留一行，别静默。
+    console.warn(`[threadharbor-chat-area] locale dictionaries: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
 
