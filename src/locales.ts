@@ -33,6 +33,7 @@ export type ChatAreaLocaleKey =
   | 'markdownTurn.newSession' | 'markdownTurn.newSessionPromptHeader' | 'markdownTurn.newSessionFailed'
   | 'markdownTurn.copyFailed' | 'markdownTurn.filesAll' | 'markdownTurn.filesAllAria'
   | 'markdownTurn.filesCollapseAria' | 'markdownTurn.openFile'
+  | 'markdownTurn.localFileHeader' | 'markdownTurn.localFileTooLarge'
 
 export const zh: Record<ChatAreaLocaleKey, string> = {
   'mermaid.label': 'Mermaid',
@@ -87,7 +88,9 @@ export const zh: Record<ChatAreaLocaleKey, string> = {
   'markdownTurn.filesAll': '全部 {count} 个文件',
   'markdownTurn.filesAllAria': '展开全部 {count} 个文件',
   'markdownTurn.filesCollapseAria': '收起文件列表',
-  'markdownTurn.openFile': '打开文件（展开即编辑）',
+  'markdownTurn.openFile': '打开本机文件',
+  'markdownTurn.localFileHeader': '以下为本机文件 {name} 的内容：',
+  'markdownTurn.localFileTooLarge': '文件超过 5 MB，没有打开',
 }
 
 export const en: Record<ChatAreaLocaleKey, string> = {
@@ -143,7 +146,9 @@ export const en: Record<ChatAreaLocaleKey, string> = {
   'markdownTurn.filesAll': 'All {count} files',
   'markdownTurn.filesAllAria': 'Show all {count} files',
   'markdownTurn.filesCollapseAria': 'Collapse the file list',
-  'markdownTurn.openFile': 'Open file (expands into the editor)',
+  'markdownTurn.openFile': 'Open a local file',
+  'markdownTurn.localFileHeader': 'Below is the content of local file {name}:',
+  'markdownTurn.localFileTooLarge': 'The file exceeds 5 MB and was not opened',
 }
 
 /** `{name}` 形式的参数插值；模板里没有对应参数时原样保留占位符。 */

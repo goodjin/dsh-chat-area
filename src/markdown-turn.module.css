@@ -5,37 +5,26 @@
   margin: 8px 0;
 }
 
-/* 尾部动作钮行：贴在轮次尾最后，与下方原生动作排（复制 / 好/坏回答）同款
-   24px 图标钮、同样的左对齐（-6px 抵消原生排的 margin-left），视觉上一组。 */
-.tailActions {
+/* 本机文件卡的头部行（展开态）：文件名 + 收起 / 关闭，压在编辑区上方一条。 */
+.localHead {
   display: flex;
   align-items: center;
-  gap: 2px;
-  margin: 0 0 -2px -6px;
+  gap: 4px;
+  padding: 6px 8px 4px 12px;
+  border-block-end: 1px solid var(--dsw-alias-border-l1, rgb(0 0 0 / 8%));
 }
 
-.tailAction {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: none;
-  border-radius: var(--dsw-radius-sm, 6px);
-  background: transparent;
-  color: var(--dsw-alias-label-secondary, inherit);
-  cursor: pointer;
-}
-
-.tailAction:hover {
-  background: var(--dsw-alias-bg-hover, rgb(0 0 0 / 6%));
-}
-
-.tailAction[data-active] {
-  background: var(--dsw-alias-interactive-bg-hover, rgb(0 0 0 / 8%));
-  color: var(--dsw-alias-label-primary, inherit);
+.localName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: text;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .document {

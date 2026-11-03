@@ -12,11 +12,11 @@
  */
 
 import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import type { ReactNode } from 'react'
-import { CodeBlock, FileTypeIcon, IconChevronDownOutlineRegular, IconChevronUpOutlineRegular, IconCloseOutlineRegular, IconEditOutlineRegular, IconFolderOpenOutlineRegular, IconNewChatOutlineRegular, IconSendOutlineRegular, IconWarningOutlineRegular, MarkdownText, Toast, Tooltip, classifyFileType, languageForPath } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { ChangeEvent, ReactNode } from 'react'
+import { CodeBlock, FileTypeIcon, IconChevronDownOutlineRegular, IconChevronUpOutlineRegular, IconCloseOutlineRegular, IconEditOutlineRegular, IconNewChatOutlineRegular, IconSendOutlineRegular, IconWarningOutlineRegular, MarkdownText, Toast, classifyFileType, languageForPath } from '@deepseek-ai/dsh-client-ui-primitives'
 import { FileOpenSplit } from './markdown-turn-open.tsx'
 import { ActiveFileBar } from './markdown-turn-active-bar.tsx'
-import { getActiveFilePath, getFileState, setActiveFilePath, subscribeActiveFilePath, toggleFileEditing, toggleFileOpen } from './markdown-turn-active.ts'
+import { getFileState, setActiveFilePath, subscribeActiveFilePath, toggleFileEditing, toggleFileOpen } from './markdown-turn-active.ts'
 import type { MarkdownLabels } from '@deepseek-ai/dsh-client-ui-primitives'
 import { fallbackT, NAMESPACE } from './locales.ts'
 import type { RuntimeT } from './locales.ts'
@@ -34,6 +34,21 @@ import css from './markdown-turn.module.css'
 
 /** 和官方改动列表一样，超过这个数量先只列出这些，其余折在「全部」后面。 */
 export const FOLDED_FILE_COUNT = 4
+
+/** 本机文件选择框可挑的类型：text/* 之外再加常用的代码 / 配置 / 文档后缀。 */
+const LOCAL_FILE_ACCEPT = [
+  'text/*',
+  '.md', '.markdown', '.txt', '.log', '.csv', '.tsv',
+  '.json', '.yaml', '.yml', '.toml', '.ini', '.cfg', '.conf', '.env',
+  '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx',
+  '.py', '.rb', '.go', '.rs', '.java', '.kt', '.swift',
+  '.c', '.h', '.cpp', '.hpp', '.cs', '.php',
+  '.sh', '.bash', '.zsh', '.sql',
+  '.html', '.htm', '.css', '.scss', '.less', '.xml', '.svg',
+].join(',')
+
+/** 超过这个大小的本机文件不读入（几 MB 起编辑框就明显卡顿）。 */
+const LOCAL_FILE_MAX_BYTES = 5 * 1024 * 1024
 
 /** turnTail 座位条目的 id。order 在官方卡片（默认 0）之后、找回入口（10）之前。 */
 export const MARKDOWN_TAIL_ID = 'threadharbor-markdown-turn'
@@ -640,6 +655,12 @@ export function MarkdownTurnTail({ sessionId, turn, t, readers, onNotify }: Mark
   const rootRef = useRef<HTMLDivElement>(null)
   const [extra, setExtra] = useState<SummaryExtra>([])
   const [listOpen, setListOpen] = useState(false)
+  // 本机文件卡：从文件选择框读入的 {name, text}。展开即编辑；发送 / 新会话后
+  // 收起成一条标题，随时可再展开或关掉。状态只属于这一个轮次尾实例。
+  const [localDoc, setLocalDoc] = useState<{ readonly name: string; readonly text: string } | null>(null)
+  const [localEditing, setLocalEditing] = useState(false)
+  const localInputRef = useRef<HTMLTextAreaElement>(null)
+  const localFilePickRef = useRef<HTMLInputElement>(null)
   useEffect(() => () => { releaseHeldFileTop(rootRef.current) }, [])
   useEffect(() => {
     if (id === undefined || changesSeq === undefined) {
@@ -663,17 +684,8 @@ export function MarkdownTurnTail({ sessionId, turn, t, readers, onNotify }: Mark
       controller.abort()
     }
   }, [id, changesSeq, readers])
-  // 「打开文件」钮作用的对象：优先当前激活的文件（还在这轮列表里），否则第一个。
-  // paths 与订阅都要在提前 return 之前算好——Hooks 不能出现在条件返回之后。
+  // paths 在提前 return 之前算好（纯计算，不涉 Hooks）。
   const paths = mergeMarkdownPaths(mergeMarkdownPaths(sources?.paths ?? [], extra), linked)
-  const activePath = getActiveFilePath()
-  const target = activePath !== null && paths.includes(activePath) ? activePath : (paths[0] ?? '')
-  // 订阅共享 store：目标文件的展开/编辑态变了，按钮的按下态才跟着翻。
-  const targetState = useSyncExternalStore(
-    subscribeActiveFilePath,
-    () => getFileState(target),
-    () => getFileState(target),
-  )
   if (id === undefined) return null
   if (paths.length === 0) return null
   const folded = paths.length > FOLDED_FILE_COUNT && !listOpen
@@ -684,44 +696,137 @@ export function MarkdownTurnTail({ sessionId, turn, t, readers, onNotify }: Mark
     holdFileTop(rootRef.current, rootRef.current)
     setListOpen(value => !value)
   }
-  const targetActive = targetState.open
-  // 打开 = 展开并直接进入编辑；再点一次 = 退出编辑并收起。
-  const toggleTarget = (): void => {
-    if (target === '') return
-    holdFileTop(rootRef.current, rootRef.current)
-    setActiveFilePath(target)
-    if (targetState.open) {
-      if (targetState.editing) toggleFileEditing(target)
-      toggleFileOpen(target)
-    } else {
-      toggleFileOpen(target)
-      toggleFileEditing(target)
+  // 本机文件卡：点文件操作栏上的「打开本机文件」→ 系统文件选择框 → 读文本 →
+  // 展开成编辑卡片并直接进入编辑态。
+  const pickFile = (): void => { localFilePickRef.current?.click() }
+  const onPicked = (event: ChangeEvent<HTMLInputElement>): void => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (file === undefined) return
+    if (file.size > LOCAL_FILE_MAX_BYTES) {
+      onNotify?.(translate('markdownTurn.localFileTooLarge'))
+      return
     }
+    void file.text().then(text => {
+      setLocalDoc({ name: file.name, text })
+      setLocalEditing(true)
+    })
   }
-  const openFileLabel = translate('markdownTurn.openFile')
+  const sendLocalText = (toNew: boolean): void => {
+    const body = localInputRef.current?.value ?? ''
+    if (body.trim() === '') return
+    const header = translate('markdownTurn.localFileHeader', { name: localDoc?.name ?? '' })
+    const payload = `${header}\n\n${body}`
+    if (toNew) {
+      void readers.createSession()
+        .then(newId => readers.sendToSession(newId, payload))
+        .catch(() => onNotify?.(translate('markdownTurn.newSessionFailed')))
+    } else {
+      void readers.sendToSession(id, payload)
+        .catch(() => onNotify?.(translate('markdownTurn.sendFailed')))
+    }
+    setLocalEditing(false)
+  }
   return <div ref={rootRef} className={css.root} data-markdown-turn="" {...(folded ? { 'data-markdown-folded': '' } : {})}>
-    {shown.length > 0 && <ActiveFileBar sessionId={id} paths={paths} readers={readers} t={translate} />}
+    <input
+      ref={localFilePickRef}
+      type="file"
+      hidden
+      accept={LOCAL_FILE_ACCEPT}
+      data-local-file-input=""
+      onChange={onPicked}
+    />
+    {localDoc !== null && (localEditing
+      ? <div className={css.editCard} data-local-doc="">
+          <div className={css.localHead}>
+            <span className={css.icon} data-file-icon={classifyFileType(localDoc.name)}>
+              <FileTypeIcon path={localDoc.name} size={14} />
+            </span>
+            <span className={css.localName} title={localDoc.name}>{localDoc.name}</span>
+            <button
+              type="button"
+              className={css.iconButton}
+              data-local-collapse=""
+              aria-label={translate('markdownTurn.collapse')}
+              title={translate('markdownTurn.collapse')}
+              onClick={() => setLocalEditing(false)}
+            >
+              <IconChevronUpOutlineRegular size={15} />
+            </button>
+            <button
+              type="button"
+              className={css.iconButton}
+              data-local-close=""
+              aria-label={translate('markdownTurn.cancel')}
+              title={translate('markdownTurn.cancel')}
+              onClick={() => { setLocalDoc(null); setLocalEditing(false) }}
+            >
+              <IconCloseOutlineRegular size={15} />
+            </button>
+          </div>
+          <textarea
+            ref={localInputRef}
+            className={css.editInput}
+            data-local-file-input-text=""
+            defaultValue={localDoc.text}
+            autoFocus
+            aria-label={translate('markdownTurn.edit')}
+            style={{ minHeight: '40dvh' }}
+          />
+          <div className={css.editActions}>
+            <button
+              type="button"
+              className={css.editNewSession}
+              data-local-new-session=""
+              aria-label={translate('markdownTurn.newSession')}
+              title={translate('markdownTurn.newSession')}
+              onClick={() => sendLocalText(true)}
+            >
+              <IconNewChatOutlineRegular size={15} /> {translate('markdownTurn.newSession')}
+            </button>
+            <button
+              type="button"
+              className={css.editSend}
+              data-local-send=""
+              aria-label={translate('markdownTurn.send')}
+              title={translate('markdownTurn.send')}
+              onClick={() => sendLocalText(false)}
+            >
+              <IconSendOutlineRegular size={16} />
+            </button>
+          </div>
+        </div>
+      : <div className={css.bar} data-local-doc="" data-collapsed="">
+          <span className={css.icon} data-file-icon={classifyFileType(localDoc.name)}>
+            <FileTypeIcon path={localDoc.name} size={16} />
+          </span>
+          <span className={css.name} title={localDoc.name}>{localDoc.name}</span>
+          <button
+            type="button"
+            className={css.iconButton}
+            data-local-expand=""
+            aria-label={translate('markdownTurn.expand')}
+            title={translate('markdownTurn.expand')}
+            onClick={() => setLocalEditing(true)}
+          >
+            <IconChevronDownOutlineRegular size={15} />
+          </button>
+          <button
+            type="button"
+            className={css.iconButton}
+            data-local-close=""
+            aria-label={translate('markdownTurn.cancel')}
+            title={translate('markdownTurn.cancel')}
+            onClick={() => { setLocalDoc(null) }}
+          >
+            <IconCloseOutlineRegular size={15} />
+          </button>
+        </div>)}
+    {shown.length > 0 && <ActiveFileBar sessionId={id} paths={paths} readers={readers} t={translate} onOpenLocalFile={pickFile} />}
     {shown.map(path => <MarkdownDocument key={path} sessionId={id} path={path} readers={readers} t={translate} {...(onNotify === undefined ? {} : { onNotify })} />)}
     {paths.length > FOLDED_FILE_COUNT && <div className={css.edge}>
       <ExpandButton open={listOpen} label={listLabel} caption={listCount} onClick={toggleList} kind="more" />
     </div>}
-    {/* 尾部动作钮行：与下方原生动作排（复制 / 好/坏回答）同款 24px 图标钮，
-        左对齐成一组。点开文件卡并直接进入编辑态。 */}
-    <div className={css.tailActions} data-tail-actions="">
-      <Tooltip portal label={openFileLabel} side="bottom" delayMs={500}>
-        <button
-          type="button"
-          className={css.tailAction}
-          data-tail-action="open-file"
-          aria-label={openFileLabel}
-          aria-pressed={targetActive}
-          {...(targetActive ? { 'data-active': '' } : {})}
-          onClick={toggleTarget}
-        >
-          <IconFolderOpenOutlineRegular size={15} />
-        </button>
-      </Tooltip>
-    </div>
   </div>
 }
 

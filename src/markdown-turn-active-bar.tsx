@@ -17,18 +17,20 @@
 
 import { useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
-import { FileTypeIcon, IconCloseOutlineRegular, IconEditOutlineRegular, IconChevronDownOutlineRegular, IconChevronUpOutlineRegular, classifyFileType } from '@deepseek-ai/dsh-client-ui-primitives'
+import { FileTypeIcon, IconCloseOutlineRegular, IconEditOutlineRegular, IconChevronDownOutlineRegular, IconChevronUpOutlineRegular, IconFolderOpenOutlineRegular, Tooltip, classifyFileType } from '@deepseek-ai/dsh-client-ui-primitives'
 import { FileOpenSplit } from './markdown-turn-open.tsx'
 import { getActiveFilePath, getFileState, subscribeActiveFilePath, toggleFileEditing, toggleFileOpen } from './markdown-turn-active.ts'
 import type { MarkdownTurnReaders } from './markdown-turn-sources.ts'
 import type { RuntimeT } from './locales.ts'
 import css from './markdown-turn.module.css'
 
-export function ActiveFileBar({ sessionId, paths, readers, t }: {
+export function ActiveFileBar({ sessionId, paths, readers, t, onOpenLocalFile }: {
   sessionId: string
   paths: readonly string[]
   readers: MarkdownTurnReaders
   t: RuntimeT
+  /** 传入时在栏尾画一枚「打开本机文件」图标钮（系统文件选择框 → 编辑卡）。 */
+  onOpenLocalFile?: () => void
 }): ReactNode {
   const active = useSyncExternalStore(subscribeActiveFilePath, getActiveFilePath, () => null)
   // 激活的文件还在当前列表里就对它作用；否则兜底第一个，保证栏始终有对象。
@@ -70,5 +72,19 @@ export function ActiveFileBar({ sessionId, paths, readers, t }: {
       {open ? <IconChevronUpOutlineRegular size={16} /> : <IconChevronDownOutlineRegular size={16} />}
     </button>
     <FileOpenSplit sessionId={sessionId} path={current} readers={readers} t={t} />
+    {onOpenLocalFile !== undefined && (
+      <Tooltip portal label={t('markdownTurn.openFile')} side="bottom" delayMs={500}>
+        <button
+          type="button"
+          className={css.iconButton}
+          data-open-local-file=""
+          aria-label={t('markdownTurn.openFile')}
+          title={t('markdownTurn.openFile')}
+          onClick={onOpenLocalFile}
+        >
+          <IconFolderOpenOutlineRegular size={16} />
+        </button>
+      </Tooltip>
+    )}
   </div>
 }
