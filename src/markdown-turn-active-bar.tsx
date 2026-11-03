@@ -17,7 +17,7 @@
 
 import { useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
-import { FileTypeIcon, IconEditOutlineRegular, IconChevronDownOutlineRegular, IconChevronUpOutlineRegular, classifyFileType } from '@deepseek-ai/dsh-client-ui-primitives'
+import { FileTypeIcon, IconCloseOutlineRegular, IconEditOutlineRegular, IconChevronDownOutlineRegular, IconChevronUpOutlineRegular, classifyFileType } from '@deepseek-ai/dsh-client-ui-primitives'
 import { FileOpenSplit } from './markdown-turn-open.tsx'
 import { getActiveFilePath, getFileState, subscribeActiveFilePath, toggleFileEditing, toggleFileOpen } from './markdown-turn-active.ts'
 import type { MarkdownTurnReaders } from './markdown-turn-sources.ts'
@@ -46,15 +46,17 @@ export function ActiveFileBar({ sessionId, paths, readers, t }: {
       type="button"
       className={css.iconButton}
       data-active-edit=""
-      aria-label={t('markdownTurn.edit')}
-      title={t('markdownTurn.edit')}
+      aria-label={t(state.editing ? 'markdownTurn.cancel' : 'markdownTurn.edit')}
+      title={t(state.editing ? 'markdownTurn.cancel' : 'markdownTurn.edit')}
       onClick={() => {
         // 折叠态点编辑也先把文档展开，再进编辑态（与文档内联按钮一致）。
-        if (!open) toggleFileOpen(current)
+        if (!state.editing) {
+          if (!open) toggleFileOpen(current)
+        }
         toggleFileEditing(current)
       }}
     >
-      <IconEditOutlineRegular size={16} />
+      {state.editing ? <IconCloseOutlineRegular size={16} /> : <IconEditOutlineRegular size={16} />}
     </button>
     <button
       type="button"

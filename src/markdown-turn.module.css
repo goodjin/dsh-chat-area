@@ -232,15 +232,41 @@
   line-height: 1;
 }
 
-/* 编辑框与 compose box。 */
-.editBox,
+/* 编辑卡片：仿输入框（composer）的组合条——细描边圆角卡，输入区无边框，
+   聚焦时整卡描边转品牌色；动作行与输入区之间一条分隔线。 */
+.editCard {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 15%));
+  border-radius: var(--dsw-radius-panel, 12px);
+  background: var(--dsw-specific-input-major, rgb(0 0 0 / 2%));
+  transition: border-color 120ms;
+  overflow: hidden;
+}
+
+.editCard:focus-within {
+  border-color: var(--dsw-alias-state-business-primary, var(--dsw-alias-brand-primary, rgb(0 0 0 / 40%)));
+}
+
 .composeBox {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.editInput,
+.editInput {
+  width: 100%;
+  resize: vertical;
+  font: inherit;
+  padding: 10px 14px 4px;
+  border: none;
+  border-radius: inherit;
+  background: transparent;
+  outline: none;
+  color: var(--dsw-alias-label-primary, inherit);
+  caret-color: var(--dsw-alias-state-business-primary, auto);
+}
+
 .composeInput {
   width: 100%;
   resize: vertical;
@@ -251,11 +277,61 @@
   background: rgb(0 0 0 / 2%);
 }
 
-.editActions,
 .composeActions {
   display: flex;
   justify-content: flex-end;
   gap: 6px;
+}
+
+/* 动作行：与输入区之间一条分隔线，右对齐，圆发送钮和文字按钮垂直居中。 */
+.editActions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px 6px 12px;
+  border-block-start: 1px solid var(--dsw-alias-border-l1, rgb(0 0 0 / 8%));
+}
+
+/* 新建会话：胶囊文字按钮，与发送钮之间留大间距（行 gap 12 + 自身 margin 14），防误点。 */
+.editNewSession {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 14px;
+  padding: 4px 12px;
+  border: 1px solid var(--dsw-alias-border-l4, rgb(0 0 0 / 20%));
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.editNewSession:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgb(0 0 0 / 6%));
+}
+
+/* 发送：与输入框发送钮同款——34px 圆形，常态铺品牌色 + 反白图标，
+   hover 转浅（`--dsw-alias-button-info-hover`）。 */
+.editSend {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--dsw-alias-button-info-fill, rgb(0 0 0 / 30%));
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 100ms;
+}
+
+.editSend:hover {
+  background: var(--dsw-alias-button-info-hover, rgb(0 0 0 / 45%));
 }
 
 .sendBtn {
@@ -277,26 +353,7 @@
   color: var(--dsw-alias-label-on-accent, inherit);
 }
 
-.editCancel {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 12px;
-  border: 1px solid var(--dsw-alias-border-l4);
-  border-radius: 6px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.editCancel:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-}
-
 @media (prefers-color-scheme: dark) {
-  .editInput,
   .composeInput {
     border-color: rgb(255 255 255 / 18%);
     background: rgb(255 255 255 / 4%);
@@ -385,7 +442,6 @@
   }
 
   .commentInput,
-  .editInput,
   .composeInput {
     border-color: rgb(255 255 255 / 18%);
     background: rgb(255 255 255 / 4%);

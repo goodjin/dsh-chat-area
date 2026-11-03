@@ -45,31 +45,44 @@
   gap: 4px;
 }
 
-/* 编辑态：一屏高的文本框 + 右下动作行，与文件阅读区的编辑一致。 */
+/* 编辑态：仿输入框（composer）的组合条——细描边圆角卡，输入区无边框，聚焦时
+   整卡描边转品牌色；动作行与输入区之间一条分隔线。 */
 .answerEditBox {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px 16px;
+  margin: 4px 12px 12px;
+  border: 1px solid var(--dsw-alias-border-l2, rgba(127, 127, 127, 0.2));
+  border-radius: var(--dsw-radius-panel, 12px);
+  background: var(--dsw-specific-input-major, rgba(127, 127, 127, 0.04));
+  transition: border-color 120ms;
+  overflow: hidden;
 }
 
-/* 编辑框：与输入框（composer）一致的展示样式——浅底、细描边、行高按正文字号走。 */
+.answerEditBox:focus-within {
+  border-color: var(--dsw-alias-state-business-primary, var(--dsw-alias-brand-primary, rgba(127, 127, 127, 0.5)));
+}
+
 .answerEditInput {
   width: 100%;
-  padding: 8px;
-  border: 1px solid var(--dsw-alias-border-l4, rgba(127 127 127 / 0.25));
-  border-radius: var(--dsw-radius-sm, 6px);
-  background: var(--dsw-alias-markdown-code-block, rgba(127 127 127 / 0.06));
+  padding: 10px 14px 4px;
+  border: none;
+  background: transparent;
+  outline: none;
+  color: var(--dsw-alias-label-primary, inherit);
+  caret-color: var(--dsw-alias-state-business-primary, auto);
   font: inherit;
   line-height: 1.6;
   resize: vertical;
 }
 
+/* 动作行：与输入区之间一条分隔线，圆发送钮和文字按钮垂直居中。 */
 .answerEditActions {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
+  padding: 6px 10px 6px 12px;
+  border-block-start: 1px solid var(--dsw-alias-border-l1, rgba(127, 127, 127, 0.12));
 }
 
 /* 取消按钮占住卡片头部的编辑位置：和编辑图标同款 24px 透明底图标按钮，hover 才
@@ -93,7 +106,7 @@
   background: var(--dsw-alias-bg-hover, rgba(127 127 127, 0.12));
 }
 
-/* 新建会话：描边胶囊文字按钮，hover 才铺一层极淡的底色。与发送钮之间留大间距
+/* 新建会话：胶囊文字按钮，hover 才铺一层极淡的底色。与发送钮之间留大间距
    （.answerEditActions 的 gap + 这里额外的 margin），避免误点发送。 */
 .answerEditNewSession {
   display: inline-flex;
@@ -102,7 +115,7 @@
   margin-right: 14px;
   padding: 4px 12px;
   border: 1px solid var(--dsw-alias-border-l4, rgba(127 127 127 / 0.25));
-  border-radius: var(--dsw-radius-sm, 6px);
+  border-radius: 999px;
   background: transparent;
   color: inherit;
   font: inherit;
@@ -114,27 +127,24 @@
   background: var(--dsw-alias-interactive-bg-hover, rgba(127 127 127 / 0.12));
 }
 
-/* 发送：仿输入框的组合条（composer）圆按钮——一枚 30px 的圆形图标按钮，常态就
-   铺品牌色 + 反色图标（和输入框发送钮一致），hover 才转浅。早先这枚按钮常态
-   浅底、hover 直接铺 `--dsw-alias-brand-primary`，深色主题下等于把整枚按钮涂
-   黑，观感突兀；现在反转后与输入框一致。 */
+/* 发送：与输入框发送钮完全同款——34px 圆形，常态铺品牌色 + 反白图标，
+   hover 转浅（`--dsw-alias-button-info-hover`）。 */
 .answerEditSend {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: inline-grid;
+  place-items: center;
   flex: none;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   padding: 0;
   border: none;
   border-radius: 999px;
-  background: var(--dsw-alias-button-info-fill, var(--dsw-alias-brand-primary, rgb(0 0 0 / 10%)));
+  background: var(--dsw-alias-button-info-fill, var(--dsw-alias-brand-primary, rgb(0 0 0 / 30%)));
   color: var(--dsw-alias-label-on-accent, #fff);
-  font: inherit;
   cursor: pointer;
+  transition: background-color 100ms;
 }
 
 .answerEditSend:hover {
-  background: var(--dsw-alias-button-info-hover, var(--dsw-alias-brand-primary, rgb(0 0 0 / 10%)));
+  background: var(--dsw-alias-button-info-hover, var(--dsw-alias-brand-primary, rgb(0 0 0 / 45%)));
   color: var(--dsw-alias-label-on-accent, #fff);
 }

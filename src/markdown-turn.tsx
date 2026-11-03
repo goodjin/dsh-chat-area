@@ -423,22 +423,38 @@ function MarkdownDocument({ sessionId, path, readers, t, onNotify }: {
           event.preventDefault()
         }}
       >{path}</span>
-      <button
-        type="button"
-        className={css.iconButton}
-        data-edit-toggle=""
-        aria-label={t('markdownTurn.edit')}
-        title={t('markdownTurn.edit')}
-        onClick={() => {
-          holdFileTop(barRef.current)
-          if (!open) setActiveFilePath(path)
-          // 编辑按钮在折叠态点也先把文档展开，再进编辑态（与内联按钮原行为一致）。
-          if (!open) toggleFileOpen(path)
-          toggleFileEditing(path)
-        }}
-      >
-        <IconEditOutlineRegular size={16} />
-      </button>
+      {/* 编辑态：取消钮占住编辑钮的位置（同一枚图标按钮换掉图标），退出编辑
+          不必再跑到正文下方的动作行里找取消。 */}
+      {editing
+        ? <button
+          type="button"
+          className={css.iconButton}
+          data-edit-cancel=""
+          aria-label={t('markdownTurn.cancel')}
+          title={t('markdownTurn.cancel')}
+          onClick={() => {
+            holdFileTop(barRef.current)
+            toggleFileEditing(path)
+          }}
+        >
+          <IconCloseOutlineRegular size={16} />
+        </button>
+        : <button
+          type="button"
+          className={css.iconButton}
+          data-edit-toggle=""
+          aria-label={t('markdownTurn.edit')}
+          title={t('markdownTurn.edit')}
+          onClick={() => {
+            holdFileTop(barRef.current)
+            if (!open) setActiveFilePath(path)
+            // 编辑按钮在折叠态点也先把文档展开，再进编辑态（与内联按钮原行为一致）。
+            if (!open) toggleFileOpen(path)
+            toggleFileEditing(path)
+          }}
+        >
+          <IconEditOutlineRegular size={16} />
+        </button>}
       <ExpandButton open={open} label={toggleLabel} onClick={toggleOpen} />
       <FileOpenSplit sessionId={sessionId} path={path} readers={readers} t={t} />
     </div>
@@ -490,7 +506,7 @@ function MarkdownDocument({ sessionId, path, readers, t, onNotify }: {
         {body.truncated && <p className={css.status}>{t('markdownTurn.truncated')}</p>}
         {editing
           ? (
-            <div className={css.editBox} data-editing="">
+            <div className={css.editCard} data-editing="">
               <textarea
                 ref={editRef}
                 className={css.editInput}
@@ -502,31 +518,23 @@ function MarkdownDocument({ sessionId, path, readers, t, onNotify }: {
               <div className={css.editActions}>
                 <button
                   type="button"
-                  className={css.editCancel}
-                  data-edit-cancel=""
-                  aria-label={t('markdownTurn.cancel')}
-                  title={t('markdownTurn.cancel')}
-                  onClick={() => { if (editing) toggleFileEditing(path) }}
-                >
-                  <IconCloseOutlineRegular size={15} /> {t('markdownTurn.cancel')}
-                </button>
-                <button
-                  type="button"
-                  className={css.sendBtn}
-                  data-edit-send=""
-                  onClick={() => { sendText(editRef.current?.value ?? ''); if (editing) toggleFileEditing(path) }}
-                >
-                  <IconSendOutlineRegular size={15} /> {t('markdownTurn.send')}
-                </button>
-                <button
-                  type="button"
-                  className={css.editCancel}
+                  className={css.editNewSession}
                   data-edit-new-session=""
                   aria-label={t('markdownTurn.newSession')}
                   title={t('markdownTurn.newSession')}
                   onClick={() => { sendToNewSession(editRef.current?.value ?? ''); if (editing) toggleFileEditing(path) }}
                 >
                   <IconNewChatOutlineRegular size={15} /> {t('markdownTurn.newSession')}
+                </button>
+                <button
+                  type="button"
+                  className={css.editSend}
+                  data-edit-send=""
+                  aria-label={t('markdownTurn.send')}
+                  title={t('markdownTurn.send')}
+                  onClick={() => { sendText(editRef.current?.value ?? ''); if (editing) toggleFileEditing(path) }}
+                >
+                  <IconSendOutlineRegular size={16} />
                 </button>
               </div>
             </div>
