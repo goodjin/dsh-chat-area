@@ -31,6 +31,7 @@ import { AnswerCard } from './answer-card.tsx'
 import { createMarkdownTurnReaders } from './markdown-turn-sources.ts'
 import type { MarkdownTurnReaders } from './markdown-turn-sources.ts'
 import { registerMarkdownTurn } from './markdown-turn.tsx'
+import { registerLocalFileComposer } from './local-file.tsx'
 import { en, fallbackT, NAMESPACE, zh } from './locales.ts'
 import type { RuntimeT } from './locales.ts'
 
@@ -193,6 +194,9 @@ export function registerConversationSurfaces(ctx: Surface): void {
 
   // 会话尾部文件卡片：通用座位，排在官方改动卡片之后。
   registerMarkdownTurn(slots as unknown as Parameters<typeof registerMarkdownTurn>[0], readers)
+
+  // 本机文件卡：composer 上方的附件座位，入口在会话头部（会话 ID 左侧）。
+  registerLocalFileComposer(slots as unknown as Parameters<typeof registerLocalFileComposer>[0], readers, dshT)
 
   // 答案卡片 wrap：包住 assistant-step，与 acp-agent 的进程段渲染共用一个挂载点。
   let removeRenderer: (() => void) | undefined
