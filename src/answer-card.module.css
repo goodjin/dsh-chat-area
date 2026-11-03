@@ -53,6 +53,7 @@
   padding: 12px 16px;
 }
 
+/* 编辑框：与输入框（composer）一致的展示样式——浅底、细描边、行高按正文字号走。 */
 .answerEditInput {
   width: 100%;
   padding: 8px;
@@ -71,11 +72,34 @@
   gap: 6px;
 }
 
-/* 取消 / 新建会话：描边胶囊文字按钮，hover 才铺一层极淡的底色。 */
-.answerEditCancel {
+/* 取消按钮占住卡片头部的编辑位置：和编辑图标同款 24px 透明底图标按钮，hover 才
+   铺一层极淡的底色。编辑时就是它替换了编辑图标，动作行里不再放取消。 */
+.answerCardCancelSlot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--dsw-radius-sm, 4px);
+  background: transparent;
+  color: var(--dsw-alias-label-secondary, inherit);
+  cursor: pointer;
+}
+
+.answerCardCancelSlot:hover {
+  background: var(--dsw-alias-bg-hover, rgba(127 127 127, 0.12));
+}
+
+/* 新建会话：描边胶囊文字按钮，hover 才铺一层极淡的底色。与发送钮之间留大间距
+   （.answerEditActions 的 gap + 这里额外的 margin），避免误点发送。 */
+.answerEditNewSession {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  margin-right: 14px;
   padding: 4px 12px;
   border: 1px solid var(--dsw-alias-border-l4, rgba(127 127 127 / 0.25));
   border-radius: var(--dsw-radius-sm, 6px);
@@ -86,14 +110,14 @@
   cursor: pointer;
 }
 
-.answerEditCancel:hover {
+.answerEditNewSession:hover {
   background: var(--dsw-alias-interactive-bg-hover, rgba(127 127 127 / 0.12));
 }
 
-/* 发送：仿输入框的组合条（composer）圆按钮——一枚 30px 的圆形图标按钮，
-   常态浅底（`--dsw-alias-interactive-bg-hover`），hover 才转品牌色 + 反色字。
-   早先这枚按钮带文字且 hover 直接铺 `--dsw-alias-brand-primary`，深色主题下
-   等于把整枚按钮涂黑，观感突兀；改成图标 + 浅 hover 后与输入框一致。 */
+/* 发送：仿输入框的组合条（composer）圆按钮——一枚 30px 的圆形图标按钮，常态就
+   铺品牌色 + 反色图标（和输入框发送钮一致），hover 才转浅。早先这枚按钮常态
+   浅底、hover 直接铺 `--dsw-alias-brand-primary`，深色主题下等于把整枚按钮涂
+   黑，观感突兀；现在反转后与输入框一致。 */
 .answerEditSend {
   display: inline-flex;
   align-items: center;
@@ -104,8 +128,8 @@
   padding: 0;
   border: none;
   border-radius: 999px;
-  background: var(--dsw-alias-interactive-bg-hover, rgb(0 0 0 / 6%));
-  color: inherit;
+  background: var(--dsw-alias-button-info-fill, var(--dsw-alias-brand-primary, rgb(0 0 0 / 10%)));
+  color: var(--dsw-alias-label-on-accent, #fff);
   font: inherit;
   cursor: pointer;
 }

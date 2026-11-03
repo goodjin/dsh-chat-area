@@ -6,10 +6,11 @@
  * affordance the file reader offers, applied to the answer itself. Thinking keeps
  * its own fold/expand inside the content.
  *
- * 编辑态的动作行仿输入框的组合条（composer）：取消/新建会话是带图标的文字按钮，
- * 发送是一枚独立的圆形图标按钮——常态浅底，hover 才转品牌色。早先发送按钮
- * hover 直接铺满 `--dsw-alias-brand-primary`（深色主题下等于涂黑整枚按钮），
- * 现在改成 composer 那颗圆按钮的浅色 hover，观感和输入框一致。
+ * 编辑态的动作行仿输入框的组合条（composer）：取消按钮占住卡片头部的编辑位置
+ * （编辑时替换编辑图标），新建会话是描边文字按钮、与发送钮之间留大间距避免误点，
+ * 发送是一枚独立的圆形图标按钮——常态就铺品牌色（和输入框发送钮一致），hover
+ * 才转浅。早先发送按钮常态浅底、hover 直接铺满品牌色，深色主题下等于把整枚按钮
+ * 涂黑，观感突兀；现在反转后与输入框一致。
  */
 import { useState, type ReactNode } from 'react'
 import {
@@ -106,6 +107,21 @@ export function AnswerCard(props: {
               <IconEditOutlineRegular size={14} className={styles.answerCardIcon} />
             </button>
           )}
+          {/* 编辑态：取消按钮占住编辑按钮的位置（卡片头部），视觉上就是编辑钮
+              换成了取消，而不是动作行里再冒一枚取消。 */}
+          {canEdit && editing && (
+            <Tooltip portal label={props.t('markdownTurn.cancel')} side="bottom" delayMs={500}>
+              <button
+                type="button"
+                className={styles.answerCardCancelSlot}
+                data-action="cancel-answer"
+                aria-label={props.t('markdownTurn.cancel')}
+                onClick={() => setEditing(false)}
+              >
+                <IconCloseOutlineRegular size={14} className={styles.answerCardIcon} />
+              </button>
+            </Tooltip>
+          )}
           <button
             type="button"
             className={styles.answerCardCopy}
@@ -134,17 +150,7 @@ export function AnswerCard(props: {
             <div className={styles.answerEditActions}>
               <button
                 type="button"
-                className={styles.answerEditCancel}
-                data-action="cancel-answer"
-                aria-label={props.t('markdownTurn.cancel')}
-                title={props.t('markdownTurn.cancel')}
-                onClick={() => setEditing(false)}
-              >
-                <IconCloseOutlineRegular size={15} /> {props.t('markdownTurn.cancel')}
-              </button>
-              <button
-                type="button"
-                className={styles.answerEditCancel}
+                className={styles.answerEditNewSession}
                 data-action="new-session-answer"
                 aria-label={props.t('markdownTurn.newSession')}
                 title={props.t('markdownTurn.newSession')}
