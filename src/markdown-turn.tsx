@@ -13,7 +13,7 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { ChangeEvent, ReactNode } from 'react'
-import { CodeBlock, FileTypeIcon, IconChevronDownOutlineRegular, IconChevronUpOutlineRegular, IconCloseOutlineRegular, IconEditOutlineRegular, IconNewChatOutlineRegular, IconSendOutlineRegular, IconWarningOutlineRegular, MarkdownText, Toast, classifyFileType, languageForPath } from '@deepseek-ai/dsh-client-ui-primitives'
+import { CodeBlock, FileTypeIcon, IconChevronDownOutlineRegular, IconChevronUpOutlineRegular, IconCloseOutlineRegular, IconEditOutlineRegular, IconFolderOpenOutlineRegular, IconNewChatOutlineRegular, IconSendOutlineRegular, IconWarningOutlineRegular, MarkdownText, Toast, classifyFileType, languageForPath } from '@deepseek-ai/dsh-client-ui-primitives'
 import { FileOpenSplit } from './markdown-turn-open.tsx'
 import { ActiveFileBar } from './markdown-turn-active-bar.tsx'
 import { getFileState, setActiveFilePath, subscribeActiveFilePath, toggleFileEditing, toggleFileOpen } from './markdown-turn-active.ts'
@@ -736,6 +736,20 @@ export function MarkdownTurnTail({ sessionId, turn, t, readers, onNotify }: Mark
       data-local-file-input=""
       onChange={onPicked}
     />
+    {/* 文件列表上方独立一行：「打开本机文件」入口（虚线胶囊，仿 composer 的
+        workspace 触发样式），点击弹系统文件选择框。 */}
+    <div className={css.localRow} data-local-open-row="">
+      <button
+        type="button"
+        className={css.localAdd}
+        data-open-local-file=""
+        aria-label={translate('markdownTurn.openFile')}
+        title={translate('markdownTurn.openFile')}
+        onClick={pickFile}
+      >
+        <IconFolderOpenOutlineRegular size={14} /> {translate('markdownTurn.openFile')}
+      </button>
+    </div>
     {localDoc !== null && (localEditing
       ? <div className={css.editCard} data-local-doc="">
           <div className={css.localHead}>
@@ -822,7 +836,7 @@ export function MarkdownTurnTail({ sessionId, turn, t, readers, onNotify }: Mark
             <IconCloseOutlineRegular size={15} />
           </button>
         </div>)}
-    {shown.length > 0 && <ActiveFileBar sessionId={id} paths={paths} readers={readers} t={translate} onOpenLocalFile={pickFile} />}
+    {shown.length > 0 && <ActiveFileBar sessionId={id} paths={paths} readers={readers} t={translate} />}
     {shown.map(path => <MarkdownDocument key={path} sessionId={id} path={path} readers={readers} t={translate} {...(onNotify === undefined ? {} : { onNotify })} />)}
     {paths.length > FOLDED_FILE_COUNT && <div className={css.edge}>
       <ExpandButton open={listOpen} label={listLabel} caption={listCount} onClick={toggleList} kind="more" />
