@@ -15,8 +15,11 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { PANEL_ID, SLOT } from '../src/session-id-bar/register.ts'
+import { PANEL_ID } from '../src/session-id-bar/index.ts'
 import { MARKDOWN_TAIL_ID } from '../src/markdown-turn.tsx'
+
+/** 会话头部工具行（会话作用域 list 插槽）。 */
+const SLOT = 'conversation.session.header.utilities'
 
 const BUNDLE_PATH = fileURLToPath(new URL('../lib/client.js', import.meta.url))
 

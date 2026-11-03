@@ -23,8 +23,13 @@ type UtilitiesSlotHost = {
   }, component: unknown): () => void
 }
 
+/** 注册项在会话头部工具行里的 key；只用自己的 id，不去占别人的格子。 */
+export const PANEL_ID = 'chat-area-session-id'
+
 /** 短 ID 显示（完整 ID 在 title 属性里） */
-const shortId = (sessionId: string): string => sessionId.replace(/^session-/, '').slice(0, 8)
+export function shortId(sessionId: string): string {
+  return sessionId.replace(/^session-/, '').slice(0, 8)
+}
 
 export function SessionIdBar({ sessionId, t = fallbackT }: BarProps) {
   const [state, setState] = useState<'idle' | 'copied' | { failed: string }>('idle')
@@ -68,13 +73,14 @@ export function registerSessionIdBar(slots: UtilitiesSlotHost): void {
   slots.inject('conversation.session.header.utilities', () => slots.register(
     {
       name: 'conversation.session.header.utilities',
-      id: 'chat-area-session-id',
+      id: PANEL_ID,
       locale: NAMESPACE,
       inject: (sessionId: string) => ({ sessionId }),
     },
     (props: { readonly sessionId?: string; readonly t?: RuntimeT }) => {
       const sessionId = props.sessionId
-      if (sessionId === undefined) return null
+      // 空串等同于没有：别在会话头部画一枚只有按钮的条。
+      if (sessionId === undefined || sessionId === '') return null
       return createElement(SessionIdBar, { sessionId, ...(props.t === undefined ? {} : { t: props.t }) })
     },
   ))
