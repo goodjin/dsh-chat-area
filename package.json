@@ -1,6 +1,6 @@
 {
   "name": "@goodjin2/dsh-chat-area",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "DSH plugin: short session ID with a copy button in the conversation header",
   "type": "module",
   "main": "./src/entry.ts",

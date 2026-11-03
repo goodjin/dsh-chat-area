@@ -1,31 +1,39 @@
 # dsh-chat-area
 
-DSH 会话区增强插件。现在只做一件事：**会话头部右端的短会话 ID + 复制按钮**。
+DSH 会话区增强插件：与跑哪种 agent 无关的会话区功能都归这里。
 
 ## 装上会发生什么
 
-会话标题栏右端多出一枚工具：显示去掉 `session-` 前缀的前 8 位会话 ID，完整 id 在
-`title` 里；旁边一个「复制」按钮，复制成功后短暂显示「已复制」。它注册进
-`conversation.session.header.utilities`（会话作用域的 list 插槽，由 DSH 的
-`ui-conversation` 声明），所以每个会话各画一份，会话 id 由框架作为 props 传入。
+- **短会话 ID + 复制**：会话标题栏右端一枚工具，显示去掉 `session-` 前缀的前 8 位
+  （完整 id 在 `title` 里），旁边一个「复制」按钮，复制成功后短暂提示。
+- **答案卡片**：一轮的最终回答外面套一层卡片，带编辑 / 复制 / 另存为新会话任务。
+- **会话尾部文件卡片**：从一轮的输出里认出文件路径，就地展开阅读、编辑、
+  发送回会话、用桌面应用打开；超过四个折叠。
+- **Mermaid 图渲染**：把 Markdown 里的 ` ```mermaid ` 代码块画成 SVG，可切「图表 /
+  源码」。运行时 3.5 MB 不内联进客户端包，第一次遇到图时才从宿主路由
+  `/threadharbor/mermaid.js` 懒加载。
 
-## 这个包为什么只剩一项功能
-
-仓库历史上声称四项功能（文件查看、mermaid、答案编辑、会话 ID 条），但前三项一直
-只有占位实现：文件查看的组件返回 `null`、`createFileReaders` 直接抛
-`Not yet implemented`、mermaid 去插一条当前 DSH 里并不存在的
-`/threadharbor/mermaid.js`、答案编辑是空函数。
-
-它们的**真实实现**活在 `@goodjin2/dsh-acp-agent` 的浏览器半边——会话尾部文件卡片
-（含编辑、另存、open-with）、mermaid 渲染、答案卡片——并且随那个插件一起装载。
-两套 UI 同时注册只会打架，所以那三份占位实现已被删除，本包收敛为会话 ID 条。
-
-| 功能 | 现在由谁提供 |
+| 功能 | 注册位置 |
 | --- | --- |
-| 会话尾部文件查看 / 编辑 / open-with | `@goodjin2/dsh-acp-agent`（`conversation.chat.turnTail`） |
-| Mermaid 图渲染 | `@goodjin2/dsh-acp-agent` |
-| 答案卡片（编辑 / 复制 / 另存为任务） | `@goodjin2/dsh-acp-agent`（ACP 过程视图内） |
-| 短会话 ID + 复制 | **本包** |
+| 短会话 ID + 复制 | `conversation.session.header.utilities`（会话作用域 list） |
+| 答案卡片 | 包住 `conversation.chat.node` 的 `assistant-step`（优先级 -50） |
+| 会话尾部文件卡片 | `conversation.chat.turnTail` |
+| Mermaid | DOM 级（扫已渲染的 Markdown）+ 宿主路由 `/threadharbor/mermaid.js` |
+
+## 与 dsh-acp-agent 的关系（两个包都装时）
+
+ACP 的**进程段**（工具调用/思考的过程卡片）是 agent 专属的，仍留在
+`@goodjin2/dsh-acp-agent`。两个包通过一个跨包座位接起来：
+
+1. 本包在重注册 `assistant-step` 包装时**声明**座位
+   `conversation.chat.node.acp-segment-renderer`（`children` 表，list 类型）。
+2. acp-agent 发现座位存在后，把它的 `AcpProcessBlock` 注册进来。
+3. 本包的包装在渲染时按座位取名：带 `acpProcessSegment` 的节点交给它，其余步骤
+   走答案卡片。
+
+`assistant-step` 的规则是「优先级最低的那条渲染」。本包用 **-50**、acp-agent 的
+兜底用 **-40**，所以本包恒在外层；只装 acp-agent 时它那层生效，ACP 段照样完整。
+改优先级必须两个包一起改——`tests/wrap-priority.spec.ts` 钉住了这个先后关系。
 
 ## 安装与挂载
 
@@ -33,14 +41,24 @@ DSH 会话区增强插件。现在只做一件事：**会话头部右端的短�
 npm install @goodjin2/dsh-chat-area
 ```
 
-在 profile 的 `dsh.profile.bundles` 里加上 `@goodjin2/dsh-chat-area` 即可：本包自带
-`cordis.patch.yml`（`dsh.bundle.patch`），里面有一行以**裸包名**挂载本包。
+在 profile 的 `dsh.profile.bundles` 里加上 `@goodjin2/dsh-chat-area` 即可。本包自带
+`cordis.patch.yml`（`dsh.bundle.patch`），里面有两行：
 
-那一行不是可有可无的：DSH 找浏览器半边的依据是 Loader 的行，不是 `package.json`
-的 `dsh.client`——只有行名恰好等于包名时，包才会进 `window.__DSH_BOOT__`
-（`ClientModuleRegistry.resolveMeta` 经 `locatePkgJson` 解析；带子路径的名字一律
-不算客户端行）。少了它，插件装上也什么都不发生，宿主日志里一个字都没有。
-推送到 npm 前请确认 `lib/client.js` 是新的：`npm run build` 会先 tsc 再打包。
+- `chat-area-client`：以**裸包名**挂载本包，浏览器半边靠它被扫进
+  `window.__DSH_BOOT__`。这一行不是可有可无的：DSH 不按 `package.json` 的
+  `dsh.client` 自动装载浏览器包，只看 Loader 的行名是否恰好等于包名
+  （`ClientModuleRegistry.resolveMeta` 经 `locatePkgJson` 解析；带子路径的名字
+  一律不算客户端行）。少了它，插件装上也什么都不发生，宿主日志里一个字都没有。
+- `threadharbor-mermaid-asset`：宿主侧 `/threadharbor/mermaid.js` 这条 exact 路由，
+  供浏览器半边懒加载 mermaid 运行时。
+
+## 迁移说明（0.3.0）
+
+mermaid 渲染、答案卡片、会话尾部文件卡片在 0.3.0 从 `@goodjin2/dsh-acp-agent`
+迁到本包（agent 无关的通用会话区功能归本包，ACP 专属留在那边）。对应的旧行
+`@goodjin2/dsh-acp-agent/mermaid-asset` 在 acp-agent 0.3.0 已删除；从旧版本升上来
+时，把 profile 里这条旧行换成 `@goodjin2/dsh-chat-area/mermaid-asset`（或直接删掉，
+由本包的 bundle patch 提供）。
 
 ## 开发
 
@@ -51,8 +69,11 @@ npm run build       # tsc -p tsconfig.json && tsdown → lib/client.js
 ```
 
 `tests/bundle.spec.ts` 会把 `lib/client.js` 按页面的方式执行一遍（模拟
-`window.__ModuleLoader__`、用页面给的 `require` 取 react、调 `apply`）：产物格式
-或 id 写错时，这里会先红，而不是等页面在装配审计里判失败。
+`window.__ModuleLoader__`、用页面给的 `require` 取 react / primitives、调 `apply`）：
+产物格式或 id 写错时，这里会先红，而不是等页面在装配审计里判失败。
+
+构建是**可复现**的：同一份源码连建两次产物字节相同（CSS module 哈希按基名算），
+所以 `lib/client.js` 入库后，重建不会平白弄脏工作区，也不会触发无意义的页面热替换。
 
 ## Requirements
 
