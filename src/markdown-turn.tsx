@@ -13,10 +13,10 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
-import { CodeBlock, FileTypeIcon, IconChevronDownOutlineRegular, IconChevronUpOutlineRegular, IconCloseOutlineRegular, IconEditOutlineRegular, IconNewChatOutlineRegular, IconSendOutlineRegular, IconWarningOutlineRegular, MarkdownText, Toast, classifyFileType, languageForPath } from '@deepseek-ai/dsh-client-ui-primitives'
+import { CodeBlock, FileTypeIcon, IconChevronDownOutlineRegular, IconChevronUpOutlineRegular, IconCloseOutlineRegular, IconEditOutlineRegular, IconFolderOpenOutlineRegular, IconNewChatOutlineRegular, IconSendOutlineRegular, IconWarningOutlineRegular, MarkdownText, Toast, Tooltip, classifyFileType, languageForPath } from '@deepseek-ai/dsh-client-ui-primitives'
 import { FileOpenSplit } from './markdown-turn-open.tsx'
 import { ActiveFileBar } from './markdown-turn-active-bar.tsx'
-import { getFileState, setActiveFilePath, subscribeActiveFilePath, toggleFileEditing, toggleFileOpen } from './markdown-turn-active.ts'
+import { getActiveFilePath, getFileState, setActiveFilePath, subscribeActiveFilePath, toggleFileEditing, toggleFileOpen } from './markdown-turn-active.ts'
 import type { MarkdownLabels } from '@deepseek-ai/dsh-client-ui-primitives'
 import { fallbackT, NAMESPACE } from './locales.ts'
 import type { RuntimeT } from './locales.ts'
@@ -663,8 +663,18 @@ export function MarkdownTurnTail({ sessionId, turn, t, readers, onNotify }: Mark
       controller.abort()
     }
   }, [id, changesSeq, readers])
-  if (id === undefined) return null
+  // 「打开文件」钮作用的对象：优先当前激活的文件（还在这轮列表里），否则第一个。
+  // paths 与订阅都要在提前 return 之前算好——Hooks 不能出现在条件返回之后。
   const paths = mergeMarkdownPaths(mergeMarkdownPaths(sources?.paths ?? [], extra), linked)
+  const activePath = getActiveFilePath()
+  const target = activePath !== null && paths.includes(activePath) ? activePath : (paths[0] ?? '')
+  // 订阅共享 store：目标文件的展开/编辑态变了，按钮的按下态才跟着翻。
+  const targetState = useSyncExternalStore(
+    subscribeActiveFilePath,
+    () => getFileState(target),
+    () => getFileState(target),
+  )
+  if (id === undefined) return null
   if (paths.length === 0) return null
   const folded = paths.length > FOLDED_FILE_COUNT && !listOpen
   const shown = folded ? paths.slice(0, FOLDED_FILE_COUNT) : paths
@@ -674,12 +684,44 @@ export function MarkdownTurnTail({ sessionId, turn, t, readers, onNotify }: Mark
     holdFileTop(rootRef.current, rootRef.current)
     setListOpen(value => !value)
   }
+  const targetActive = targetState.open
+  // 打开 = 展开并直接进入编辑；再点一次 = 退出编辑并收起。
+  const toggleTarget = (): void => {
+    if (target === '') return
+    holdFileTop(rootRef.current, rootRef.current)
+    setActiveFilePath(target)
+    if (targetState.open) {
+      if (targetState.editing) toggleFileEditing(target)
+      toggleFileOpen(target)
+    } else {
+      toggleFileOpen(target)
+      toggleFileEditing(target)
+    }
+  }
+  const openFileLabel = translate('markdownTurn.openFile')
   return <div ref={rootRef} className={css.root} data-markdown-turn="" {...(folded ? { 'data-markdown-folded': '' } : {})}>
     {shown.length > 0 && <ActiveFileBar sessionId={id} paths={paths} readers={readers} t={translate} />}
     {shown.map(path => <MarkdownDocument key={path} sessionId={id} path={path} readers={readers} t={translate} {...(onNotify === undefined ? {} : { onNotify })} />)}
     {paths.length > FOLDED_FILE_COUNT && <div className={css.edge}>
       <ExpandButton open={listOpen} label={listLabel} caption={listCount} onClick={toggleList} kind="more" />
     </div>}
+    {/* 尾部动作钮行：与下方原生动作排（复制 / 好/坏回答）同款 24px 图标钮，
+        左对齐成一组。点开文件卡并直接进入编辑态。 */}
+    <div className={css.tailActions} data-tail-actions="">
+      <Tooltip portal label={openFileLabel} side="bottom" delayMs={500}>
+        <button
+          type="button"
+          className={css.tailAction}
+          data-tail-action="open-file"
+          aria-label={openFileLabel}
+          aria-pressed={targetActive}
+          {...(targetActive ? { 'data-active': '' } : {})}
+          onClick={toggleTarget}
+        >
+          <IconFolderOpenOutlineRegular size={15} />
+        </button>
+      </Tooltip>
+    </div>
   </div>
 }
 

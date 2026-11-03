@@ -32,7 +32,7 @@ export type ChatAreaLocaleKey =
   | 'markdownTurn.commentRemove' | 'markdownTurn.composePlaceholder' | 'markdownTurn.sendFailed'
   | 'markdownTurn.newSession' | 'markdownTurn.newSessionPromptHeader' | 'markdownTurn.newSessionFailed'
   | 'markdownTurn.copyFailed' | 'markdownTurn.filesAll' | 'markdownTurn.filesAllAria'
-  | 'markdownTurn.filesCollapseAria'
+  | 'markdownTurn.filesCollapseAria' | 'markdownTurn.openFile'
 
 export const zh: Record<ChatAreaLocaleKey, string> = {
   'mermaid.label': 'Mermaid',
@@ -87,6 +87,7 @@ export const zh: Record<ChatAreaLocaleKey, string> = {
   'markdownTurn.filesAll': '全部 {count} 个文件',
   'markdownTurn.filesAllAria': '展开全部 {count} 个文件',
   'markdownTurn.filesCollapseAria': '收起文件列表',
+  'markdownTurn.openFile': '打开文件（展开即编辑）',
 }
 
 export const en: Record<ChatAreaLocaleKey, string> = {
@@ -142,6 +143,7 @@ export const en: Record<ChatAreaLocaleKey, string> = {
   'markdownTurn.filesAll': 'All {count} files',
   'markdownTurn.filesAllAria': 'Show all {count} files',
   'markdownTurn.filesCollapseAria': 'Collapse the file list',
+  'markdownTurn.openFile': 'Open file (expands into the editor)',
 }
 
 /** `{name}` 形式的参数插值；模板里没有对应参数时原样保留占位符。 */

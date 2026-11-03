@@ -5,6 +5,39 @@
   margin: 8px 0;
 }
 
+/* 尾部动作钮行：贴在轮次尾最后，与下方原生动作排（复制 / 好/坏回答）同款
+   24px 图标钮、同样的左对齐（-6px 抵消原生排的 margin-left），视觉上一组。 */
+.tailActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0 0 -2px -6px;
+}
+
+.tailAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--dsw-radius-sm, 6px);
+  background: transparent;
+  color: var(--dsw-alias-label-secondary, inherit);
+  cursor: pointer;
+}
+
+.tailAction:hover {
+  background: var(--dsw-alias-bg-hover, rgb(0 0 0 / 6%));
+}
+
+.tailAction[data-active] {
+  background: var(--dsw-alias-interactive-bg-hover, rgb(0 0 0 / 8%));
+  color: var(--dsw-alias-label-primary, inherit);
+}
+
 .document {
   min-width: 0;
   border: 1px solid rgb(0 0 0 / 12%);
