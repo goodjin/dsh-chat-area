@@ -5,6 +5,11 @@
  * whose prose can be sent to the session or a new session as a task — the same
  * affordance the file reader offers, applied to the answer itself. Thinking keeps
  * its own fold/expand inside the content.
+ *
+ * 编辑态的动作行仿输入框的组合条（composer）：取消/新建会话是带图标的文字按钮，
+ * 发送是一枚独立的圆形图标按钮——常态浅底，hover 才转品牌色。早先发送按钮
+ * hover 直接铺满 `--dsw-alias-brand-primary`（深色主题下等于涂黑整枚按钮），
+ * 现在改成 composer 那颗圆按钮的浅色 hover，观感和输入框一致。
  */
 import { useState, type ReactNode } from 'react'
 import {
@@ -17,6 +22,7 @@ import {
   IconThinkOutlineRegular,
   IconWarningOutlineRegular,
   Toast,
+  Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MarkdownTurnReaders } from './markdown-turn-sources.ts'
 import styles from './answer-card.module.css'
@@ -146,14 +152,17 @@ export function AnswerCard(props: {
               >
                 <IconNewChatOutlineRegular size={15} /> {props.t('markdownTurn.newSession')}
               </button>
-              <button
-                type="button"
-                className={styles.answerEditSend}
-                data-action="send-answer"
-                onClick={() => { sendText(readEditValue()); setEditing(false) }}
-              >
-                <IconSendOutlineRegular size={15} /> {props.t('markdownTurn.send')}
-              </button>
+              <Tooltip portal label={props.t('markdownTurn.send')} side="top" align="end" delayMs={500}>
+                <button
+                  type="button"
+                  className={styles.answerEditSend}
+                  data-action="send-answer"
+                  aria-label={props.t('markdownTurn.send')}
+                  onClick={() => { sendText(readEditValue()); setEditing(false) }}
+                >
+                  <IconSendOutlineRegular size={15} />
+                </button>
+              </Tooltip>
             </div>
           </div>
         )

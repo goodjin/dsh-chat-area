@@ -67,9 +67,11 @@
 .answerEditActions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 6px;
 }
 
+/* 取消 / 新建会话：描边胶囊文字按钮，hover 才铺一层极淡的底色。 */
 .answerEditCancel {
   display: inline-flex;
   align-items: center;
@@ -88,23 +90,27 @@
   background: var(--dsw-alias-interactive-bg-hover, rgba(127 127 127 / 0.12));
 }
 
-/* 发送：与文件阅读区 .sendBtn 一致——常态浅底，hover 才转品牌色 + 反色字，
-   避免常态用品牌色把整块涂黑。 */
+/* 发送：仿输入框的组合条（composer）圆按钮——一枚 30px 的圆形图标按钮，
+   常态浅底（`--dsw-alias-interactive-bg-hover`），hover 才转品牌色 + 反色字。
+   早先这枚按钮带文字且 hover 直接铺 `--dsw-alias-brand-primary`，深色主题下
+   等于把整枚按钮涂黑，观感突兀；改成图标 + 浅 hover 后与输入框一致。 */
 .answerEditSend {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 12px;
-  border: 1px solid transparent;
-  border-radius: var(--dsw-radius-sm, 6px);
+  justify-content: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
   background: var(--dsw-alias-interactive-bg-hover, rgb(0 0 0 / 6%));
   color: inherit;
   font: inherit;
-  font-size: 12px;
   cursor: pointer;
 }
 
 .answerEditSend:hover {
-  background: var(--dsw-alias-brand-primary, rgb(0 0 0 / 10%));
-  color: var(--dsw-alias-label-on-accent, inherit);
+  background: var(--dsw-alias-button-info-hover, var(--dsw-alias-brand-primary, rgb(0 0 0 / 10%)));
+  color: var(--dsw-alias-label-on-accent, #fff);
 }

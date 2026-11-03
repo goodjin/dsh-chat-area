@@ -2,11 +2,17 @@
  * 会话 ID 条：显示在会话头部工具行，显示短 ID + 复制按钮。
  *
  * 从 threadharbor 迁移过来（2026-11-02），这是一个通用功能，不依赖多主机联邦。
+ *
+ * 复制按钮仿答案卡片 / 文件阅读区的图标按钮：24px 的透明底图标按钮，hover 才
+ * 铺一层极淡的底色，复制成功后短暂变绿。早先这里直接写死「复制」文字，和
+ * 周围的工具行图标风格不搭；现在统一成图标 + Tooltip。
  */
 import { useEffect, useRef, useState } from 'react'
 import { createElement } from 'react'
+import { IconCheckOutlineRegular, IconCopyOutlineRegular, IconWarningOutlineRegular, Toast, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { RuntimeT } from '../locales.ts'
 import { NAMESPACE, fallbackT } from '../locales.ts'
+import css from './session-id-bar.module.css'
 
 type BarProps = {
   readonly sessionId: string
@@ -64,14 +70,32 @@ export function SessionIdBar({ sessionId, t = fallbackT }: BarProps) {
     style: { display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', opacity: 0.75 },
   },
     createElement('code', { style: { fontVariantNumeric: 'tabular-nums' } }, shortId(sessionId)),
-    createElement('button', {
-      type: 'button',
-      'data-action': 'copy-session-id',
-      onClick: copy,
-      style: { border: 'none', background: 'transparent', cursor: 'pointer', padding: '2px 4px', borderRadius: '4px' },
-    }, textOf(t, 'panel.sessionBar.copy')),
-    state === 'idle' ? null : createElement('span', { 'data-copy-state': true },
-      state === 'copied' ? textOf(t, 'panel.sessionBar.copied') : `${textOf(t, 'panel.sessionBar.copyFailed')}${state.failed}`),
+    createElement(Tooltip, {
+      portal: true,
+      label: t('panel.sessionBar.copy'),
+      side: 'bottom',
+      delayMs: 500,
+      children: createElement('button', {
+        type: 'button',
+        className: css.copyBtn,
+        'data-action': 'copy-session-id',
+        onClick: copy,
+        'aria-label': t('panel.sessionBar.copy'),
+        'data-copied': state === 'copied' || undefined,
+      },
+        state === 'copied'
+          ? createElement(IconCheckOutlineRegular, { size: 14 })
+          : createElement(IconCopyOutlineRegular, { size: 14 }),
+      ),
+    }),
+    state === 'idle' ? null : createElement(Toast, {
+      key: state === 'copied' ? 'copied' : state.failed,
+      text: state === 'copied' ? t('panel.sessionBar.copied') : `${t('panel.sessionBar.copyFailed')}${state.failed}`,
+      icon: state === 'copied'
+        ? createElement(IconCheckOutlineRegular)
+        : createElement(IconWarningOutlineRegular),
+      onDone: () => { setState('idle') },
+    }),
   )
 }
 
