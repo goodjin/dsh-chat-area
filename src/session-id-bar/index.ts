@@ -1,18 +1,81 @@
 /**
- * 「会话 ID 条」模块的对外出口。
+ * 会话 ID 条：显示在会话头部工具行，显示短 ID + 复制按钮。
  *
- * 真正的实现在 register.ts；浏览器入口（src/index.ts）直接用它。这个文件保留
- * 是为了 package.json 里的 `./session-id-bar` 子路径依旧可用（别人按子路径引用
- * 时拿到的是同一份实现，而不是另一套占位）。
+ * 从 threadharbor 迁移过来（2026-11-02），这是一个通用功能，不依赖多主机联邦。
  */
+import { useEffect, useRef, useState } from 'react'
+import { createElement } from 'react'
+import type { RuntimeT } from '../locales.ts'
+import { NAMESPACE, fallbackT } from '../locales.ts'
 
-export {
-  PANEL_ID,
-  PANEL_ORDER,
-  SLOT,
-  SessionIdBar,
-  registerSessionIdBar,
-  sessionBarView,
-  shortSessionId,
-} from './register.js'
-export type { HeaderSlots, SessionBarViewInput, SessionIdBarProps } from './register.js'
+type BarProps = {
+  readonly sessionId: string
+  readonly t?: RuntimeT
+}
+
+type UtilitiesSlotHost = {
+  inject(key: string, callback: () => unknown): unknown
+  register(options: {
+    name: string
+    id?: string
+    locale?: string
+    inject?: (sessionId: string) => unknown
+  }, component: unknown): () => void
+}
+
+/** 短 ID 显示（完整 ID 在 title 属性里） */
+const shortId = (sessionId: string): string => sessionId.replace(/^session-/, '').slice(0, 8)
+
+export function SessionIdBar({ sessionId, t = fallbackT }: BarProps) {
+  const [state, setState] = useState<'idle' | 'copied' | { failed: string }>('idle')
+  const timer = useRef<number | undefined>(undefined)
+
+  useEffect(() => () => { if (timer.current !== undefined) window.clearTimeout(timer.current) }, [])
+
+  const copy = (): void => {
+    navigator.clipboard?.writeText(sessionId).then(() => {
+      setState('copied')
+      timer.current = window.setTimeout(() => { setState('idle') }, 2000)
+    }, (error: unknown) => {
+      setState({ failed: error instanceof Error ? error.message : String(error) })
+    })
+  }
+
+  return createElement('div', {
+    'data-session-id-bar': true,
+    title: sessionId,
+    style: { display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', opacity: 0.75 },
+  },
+    createElement('code', { style: { fontVariantNumeric: 'tabular-nums' } }, shortId(sessionId)),
+    createElement('button', {
+      type: 'button',
+      'data-action': 'copy-session-id',
+      onClick: copy,
+      style: { border: 'none', background: 'transparent', cursor: 'pointer', padding: '2px 4px', borderRadius: '4px' },
+    }, t('panel.sessionBar.copy')),
+    state === 'idle' ? null : createElement('span', { 'data-copy-state': true },
+      state === 'copied' ? t('panel.sessionBar.copied') : `${t('panel.sessionBar.copyFailed')}${state.failed}`),
+  )
+}
+
+/**
+ * 注册会话 ID 条到会话头部工具行。
+ * 
+ * 这个座位是会话作用域的：框架会把 sessionId 作为注册回调的第一个参数传入
+ * （会话包自己的头部也用它来处理视图切换器）。
+ */
+export function registerSessionIdBar(slots: UtilitiesSlotHost): void {
+  slots.inject('conversation.session.header.utilities', () => slots.register(
+    {
+      name: 'conversation.session.header.utilities',
+      id: 'chat-area-session-id',
+      locale: NAMESPACE,
+      inject: (sessionId: string) => ({ sessionId }),
+    },
+    (props: { readonly sessionId?: string; readonly t?: RuntimeT }) => {
+      const sessionId = props.sessionId
+      if (sessionId === undefined) return null
+      return createElement(SessionIdBar, { sessionId, ...(props.t === undefined ? {} : { t: props.t }) })
+    },
+  ))
+}

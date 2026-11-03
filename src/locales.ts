@@ -17,6 +17,7 @@ export const NAMESPACE = 'threadharborChatArea'
 export type ChatAreaLocaleKey =
   | 'mermaid.label' | 'mermaid.diagram' | 'mermaid.source' | 'mermaid.toggleNamed'
   | 'answerCard.copy' | 'answerCard.copied' | 'answerCard.edit'
+  | 'panel.sessionBar.copy' | 'panel.sessionBar.copied' | 'panel.sessionBar.copyFailed'
   | 'markdownTurn.loading' | 'markdownTurn.error' | 'markdownTurn.retry'
   | 'markdownTurn.truncated' | 'markdownTurn.collapse' | 'markdownTurn.expand'
   | 'markdownTurn.collapseAria' | 'markdownTurn.expandAria'
@@ -41,6 +42,9 @@ export const zh: Record<ChatAreaLocaleKey, string> = {
   'answerCard.copy': '复制结果',
   'answerCard.copied': '已复制',
   'answerCard.edit': '编辑',
+  'panel.sessionBar.copy': '复制',
+  'panel.sessionBar.copied': '已复制',
+  'panel.sessionBar.copyFailed': '复制失败：',
   'markdownTurn.loading': '正在读取文档…',
   'markdownTurn.error': '文档没有读出来',
   'markdownTurn.retry': '重试',
@@ -93,6 +97,9 @@ const en: Record<ChatAreaLocaleKey, string> = {
   'answerCard.copy': 'Copy result',
   'answerCard.copied': 'Copied',
   'answerCard.edit': 'Edit',
+  'panel.sessionBar.copy': 'Copy',
+  'panel.sessionBar.copied': 'Copied',
+  'panel.sessionBar.copyFailed': 'Copy failed: ',
   'markdownTurn.loading': 'Reading the document…',
   'markdownTurn.error': 'The document did not load',
   'markdownTurn.retry': 'Retry',
