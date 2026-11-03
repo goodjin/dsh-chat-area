@@ -44,7 +44,26 @@ export const SEGMENT_RENDERER_SLOT = 'conversation.chat.node.acp-segment-rendere
 /** 目标渲染位与 wrap 优先级。 */
 const NODE_SLOT = 'conversation.chat.node'
 const NODE_KEY = 'assistant-step'
-const WRAP_PRIORITY = -20
+/**
+ * 本包必须在外层：数值要**小于** acp-agent 的兜底层（那里固定 -40）。
+ *
+ * 这个插槽的规则是「同一格子里优先级最低的那条渲染」（`entriesOfSlot` 按升序
+ * 取第一个；DSH 自己的模型标签也是用 -10 去盖住 0）。所以 -50 先于 -40 渲染：
+ * 本包先分派——ACP 段交给座位 {@link SEGMENT_RENDERER_SLOT}（acp-agent 注册进来
+ * 的渲染器），其余步骤走答案卡片。acp-agent 的 -40 只在**没装本包**时生效，
+ * 那时座位没人声明，它自己渲染 ACP 段。
+ *
+ * 2026-11-03 现场：这里曾是 -20，而 acp-agent 是 -40，于是 acp-agent 盖住了
+ * 本包，答案卡片整块不出现；acp-agent 注释里写的「chat-area 是 -30」也与实际
+ * 不符。改优先级时两边一起改，本文件底部的测试钉住了这个不变量。
+ */
+const WRAP_PRIORITY = -50
+
+/** 供测试钉住与 acp-agent 兜底层的先后关系（见 {@link WRAP_PRIORITY}）。 */
+export const ASSISTANT_STEP_WRAP_PRIORITY = WRAP_PRIORITY
+
+/** acp-agent 自己的兜底 wrap 优先级；本包必须严格更小（更低=更外层）。 */
+export const ACP_AGENT_FALLBACK_PRIORITY = -40
 
 type Surface = {
   readonly slots: unknown
