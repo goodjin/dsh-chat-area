@@ -543,3 +543,22 @@
   border-radius: var(--dsw-radius-xs);
   background: var(--dsw-alias-interactive-bg-hover);
 }
+
+/* 工具标签里的纯编辑卡：编辑框下方两个文字按钮（发送到会话 / 新建会话）。 */
+.tabSend,
+.tabNewSession {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--dsw-alias-border-l1, rgb(0 0 0 / 12%));
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+.tabSend:hover,
+.tabNewSession:hover { background: var(--ds-bg-hover, rgb(136 136 136 / 20%)); }
+.tabSend[data-local-send] { background: var(--dsw-alias-brand-l1, #4d6bfe); border-color: transparent; color: #fff; }
+.tabSend[data-local-send]:hover { background: var(--dsw-alias-brand-l2, #6b82ff); }

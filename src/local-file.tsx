@@ -85,7 +85,11 @@ export function LocalFileComposerCard(props: {
   readonly doc: LocalFileDoc
   readonly readers: MarkdownTurnReaders
   readonly t: RuntimeT
+  /** overlay = 输入框上方的卡（默认，带收起/取消）；tab = 工具标签里的纯编辑卡。 */
+  readonly variant?: 'overlay' | 'tab'
 }): ReactNode {
+  const variant = props.variant ?? 'overlay'
+  const tabMode = variant === 'tab'
   const [editing, setEditing] = useState(true)
   const [toast, setToast] = useState<{ seq: number; text: string } | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -109,7 +113,7 @@ export function LocalFileComposerCard(props: {
     void sending.then(() => { props.onSent?.() }).catch(() => {
       setToast({ seq: (toast?.seq ?? 0) + 1, text: t(toNew ? 'markdownTurn.newSessionFailed' : 'markdownTurn.sendFailed') })
     })
-    setEditing(false)
+    if (!tabMode) setEditing(false)
   }
 
   return <>
@@ -120,7 +124,7 @@ export function LocalFileComposerCard(props: {
               <FileTypeIcon path={props.doc.name} size={14} />
             </span>
             <span className={css.localName} title={props.doc.name}>{props.doc.name}</span>
-            <button
+            {!tabMode && <button
               type="button"
               className={css.iconButton}
               data-local-collapse=""
@@ -129,8 +133,8 @@ export function LocalFileComposerCard(props: {
               onClick={() => setEditing(false)}
             >
               <IconChevronUpOutlineRegular size={15} />
-            </button>
-            <button
+            </button>}
+            {!tabMode && <button
               type="button"
               className={css.iconButton}
               data-local-close=""
@@ -139,7 +143,7 @@ export function LocalFileComposerCard(props: {
               onClick={() => props.onClose ? props.onClose() : setLocalFileDoc(null)}
             >
               <IconCloseOutlineRegular size={15} />
-            </button>
+            </button>}
           </div>
           <textarea
             ref={inputRef}
@@ -152,29 +156,36 @@ export function LocalFileComposerCard(props: {
             style={{ minHeight: '28dvh' }}
           />
           <div className={css.editActions}>
-            <button type="button" className={css.iconButton} aria-label="复制全文" onClick={() => {
-              void navigator.clipboard.writeText(draft).then(() => setToast({ seq: Date.now(), text: '已复制' }), () => setToast({ seq: Date.now(), text: '复制失败' }))
-            }}>复制全文</button>
-            <button
-              type="button"
-              className={css.editNewSession}
-              data-local-new-session=""
-              aria-label={t('markdownTurn.newSession')}
-              title={t('markdownTurn.newSession')}
-              onClick={() => send(true)}
-            >
-              <IconNewChatOutlineRegular size={15} /> {t('markdownTurn.newSession')}
-            </button>
-            <button
-              type="button"
-              className={css.editSend}
-              data-local-send=""
-              aria-label={t('markdownTurn.send')}
-              title={t('markdownTurn.send')}
-              onClick={() => send(false)}
-            >
-              <IconSendOutlineRegular size={16} />
-            </button>
+            {tabMode
+              ? <>
+                  <button type="button" className={css.tabSend} data-local-send="" onClick={() => send(false)}>发送到会话</button>
+                  <button type="button" className={css.tabNewSession} data-local-new-session="" onClick={() => send(true)}>{t('markdownTurn.newSession')}</button>
+                </>
+              : <>
+                  <button type="button" className={css.iconButton} aria-label="复制全文" onClick={() => {
+                    void navigator.clipboard.writeText(draft).then(() => setToast({ seq: Date.now(), text: '已复制' }), () => setToast({ seq: Date.now(), text: '复制失败' }))
+                  }}>复制全文</button>
+                  <button
+                    type="button"
+                    className={css.editNewSession}
+                    data-local-new-session=""
+                    aria-label={t('markdownTurn.newSession')}
+                    title={t('markdownTurn.newSession')}
+                    onClick={() => send(true)}
+                  >
+                    <IconNewChatOutlineRegular size={15} /> {t('markdownTurn.newSession')}
+                  </button>
+                  <button
+                    type="button"
+                    className={css.editSend}
+                    data-local-send=""
+                    aria-label={t('markdownTurn.send')}
+                    title={t('markdownTurn.send')}
+                    onClick={() => send(false)}
+                  >
+                    <IconSendOutlineRegular size={16} />
+                  </button>
+                </>}
           </div>
         </div>
       : <div className={css.bar} data-local-doc="" data-collapsed="">

@@ -5,10 +5,10 @@
 .chat[data-chat-strip-live] { flex:1 1 0; }
 .chat[hidden],.content[hidden],.body[hidden] { display:none; }
 .tools { display:flex; flex-direction:column; min-height:0; min-width:0; height:100%; }
-.toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:8px; padding:10px 16px 0; border-bottom:1px solid var(--ds-border,#8883); }
+.toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:6px; padding:10px 16px; border-bottom:1px solid var(--ds-border,#8883); }
 .toolbar button,.toolbar select,.tabs button { color:inherit; background:transparent; border:1px solid var(--ds-border,#8883); border-radius:6px; padding:6px 10px; cursor:pointer; }
-.preference { margin-left:auto; font-size:12px; display:flex; gap:8px; align-items:center; margin-bottom:10px; }
-.tabs { display:flex; flex-wrap:wrap; gap:6px; padding:8px 16px; }
+.preference { margin-left:auto; font-size:12px; display:flex; gap:8px; align-items:center; }
+.tabs { display:flex; flex-wrap:wrap; gap:4px; align-items:center; min-width:0; }
 .tab { display:flex; gap:2px; }
 .tab [aria-selected=true] { background:var(--ds-bg-hover,#8882); }
 .content { position:relative; display:flex; flex:1; min-height:0; overflow:hidden; padding-left:24px; }

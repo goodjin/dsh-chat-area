@@ -100,18 +100,18 @@ export function registerConversationTools(ctx: any) {
         {(['files', 'browser', 'terminal'] as const).map(kind => <button key={kind} onClick={() => {
           try { adapter.open(id, kind) } catch (err) { setError(String(err)) }
         }}>{({ files: '工作区文件', browser: '浏览器', terminal: '终端' })[kind]}</button>)}
+        <div className={css.tabs} role="tablist" aria-label="会话区标签">
+          {s.tabs.map(tab => <div className={css.tab} key={tab.id}>
+            <button role="tab" aria-selected={s.active === tab.id} onClick={() => toolsState.select(id, tab.id)}>{tab.title}</button>
+            {tab.kind !== 'chat' && <button aria-label={`关闭 ${tab.title}`} onClick={() => { adapter.close(id, tab.id); docs.delete(tab.id) }}>×</button>}
+          </div>)}
+        </div>
         <label className={css.preference}>链接默认打开 <select aria-label="链接默认打开方式" value={mode} onChange={e => {
           const value = e.target.value as 'right' | 'browser'; writeDefaultLinkOpenMode(value); setMode(value)
         }}><option value="right">内置浏览器</option><option value="browser">外部浏览器</option></select></label>
         <input ref={pick} hidden type="file" accept={LOCAL_FILE_ACCEPT} onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; void selectFile(f) }} />
       </div>
       {(error !== '' || notice !== '') && <p role="alert">{error !== '' ? error : notice}</p>}
-      <div className={css.tabs} role="tablist" aria-label="会话区标签">
-        {s.tabs.map(tab => <div className={css.tab} key={tab.id}>
-          <button role="tab" aria-selected={s.active === tab.id} onClick={() => toolsState.select(id, tab.id)}>{tab.title}</button>
-          {tab.kind !== 'chat' && <button aria-label={`关闭 ${tab.title}`} onClick={() => { adapter.close(id, tab.id); docs.delete(tab.id) }}>×</button>}
-        </div>)}
-      </div>
       <div className={css.content} data-chat-tools-bodies="">
         {s.tabs.map(tab => {
           if (tab.kind === 'chat') return null
@@ -120,7 +120,7 @@ export function registerConversationTools(ctx: any) {
           const info = adapter.tabInfo(id, tab, visible)
           return <div key={tab.id} hidden={!visible} className={css.body}>
             {tab.kind === 'local' && docs.has(tab.id)
-              ? <LocalFileComposerCard doc={docs.get(tab.id)!} readers={readers} t={fallbackT} sessionId={id}
+              ? <LocalFileComposerCard variant="tab" doc={docs.get(tab.id)!} readers={readers} t={fallbackT} sessionId={id}
                   onDraftChange={text => { const doc = docs.get(tab.id); if (doc) docs.set(tab.id, { ...doc, text }) }}
                   onSent={() => toolsState.activateChat(id)} onClose={() => { adapter.close(id, tab.id); docs.delete(tab.id) }} />
               : definition && props.renderSlot(BODY, {}, { entryKey: definition.id, hookContext: () => info })}
