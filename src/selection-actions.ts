@@ -27,6 +27,12 @@ export const SELECTION_SHOW_DELAY_MS = 1000
 const BAR_CSS = [
   '.dshca-selbar{position:fixed;z-index:60;display:flex;gap:2px;padding:2px;',
   'border-radius:8px;background:rgb(30 30 30 / 88%);box-shadow:0 2px 8px rgb(0 0 0 / 25%)}',
+  // 尖角：默认在弹条下方（朝下指向选区）；data-arrow="up" 时翻到上方。
+  // 水平位置由 JS 写入 --dshca-arrow-x（对准选区行的中心）。
+  '.dshca-selbar::after{content:"";position:absolute;bottom:-6px;left:var(--dshca-arrow-x,16px);',
+  'margin-left:-6px;border:6px solid transparent;border-top-color:rgb(30 30 30 / 88%);border-bottom:0}',
+  '.dshca-selbar[data-arrow="up"]::after{bottom:auto;top:-6px;',
+  'border-top:0;border-bottom:6px solid rgb(30 30 30 / 88%)}',
   '.dshca-selbar button{border:none;background:transparent;color:rgb(255 255 255 / 92%);',
   'font:inherit;font-size:12px;line-height:18px;padding:4px 10px;border-radius:6px;cursor:pointer;white-space:nowrap}',
   '.dshca-selbar button:hover{background:rgb(255 255 255 / 14%)}',
@@ -56,25 +62,37 @@ export function selectionAllowed(anchor: SelectionAnchor | null, barInDocument: 
 }
 
 /**
- * 计算弹条位置：贴在选区末行右缘，出视口时往回收。
- * @param rect - 选区末行的客户区矩形。
+ * 计算弹条位置：放在选区**首行**的上一行，带一个尖角指向选中内容。
+ *
+ * - 默认在首行上方（箭头朝下）；首行贴近视口顶时翻到行下方（箭头朝上）。
+ * - 水平上弹条左缘先对齐选区行首，出右视口往左收；尖角指向该行选区的
+ *   水平中心（钳在弹条内，别探出边缘）。
+ * @param rect - 选区首行的客户区矩形。
  * @param viewport - 视口尺寸。
  * @param bar - 弹条尺寸。
- * @returns 弹条的 fixed 定位坐标。
+ * @returns 定位坐标、箭头水平偏移（相对弹条左缘）与箭头方向。
  */
 export function selectionBarPosition(
-  rect: { left: number; right: number; top: number; bottom: number; height: number },
+  rect: { left: number; right: number; top: number; bottom: number; width: number; height: number },
   viewport: { width: number; height: number },
   bar: { width: number; height: number },
-): { left: number; top: number } {
+): { left: number; top: number; arrowOffset: number; arrow: 'down' | 'up' } {
   const margin = 8
-  let left = rect.right + 8
-  let top = rect.top + rect.height / 2 - bar.height / 2
-  if (left + bar.width + margin > viewport.width) left = viewport.width - bar.width - margin
+  const gap = 6
+  let arrow: 'down' | 'up' = 'down'
+  let top = rect.top - bar.height - gap
+  if (top < margin) {
+    // 首行贴近视口顶：翻到选区行下方，尖角朝上。
+    arrow = 'up'
+    top = rect.bottom + gap
+  }
+  if (top + bar.height + margin > viewport.height) top = viewport.height - margin - bar.height
+  let left = rect.left
+  if (left + bar.width + margin > viewport.width) left = viewport.width - margin - bar.width
   if (left < margin) left = margin
-  if (top + bar.height + margin > viewport.height) top = viewport.height - bar.height - margin
-  if (top < margin) top = margin
-  return { left, top }
+  const arrowX = rect.left + rect.width / 2
+  const arrowOffset = Math.min(Math.max(arrowX - left, 10), bar.width - 10)
+  return { left, top, arrowOffset, arrow }
 }
 
 /** 当前会话编号：会话根节点上框架写的 data-conversation-session。 */
@@ -173,12 +191,12 @@ export function startSelectionActions(options: { readers: MarkdownTurnReaders; t
     if (!selectionAllowed(anchorElement, root.isConnected)) { hide(); return }
     const text = sel.toString().trim()
     if (text === '') { hide(); return }
-    // 末行矩形：多行选区时「选中文字的最后边」是最后一行的右缘。
+    // 首行矩形：弹条放在选区第一行的上一行，尖角指向选中内容。
     const rects = range.getClientRects()
-    const rect = rects.length > 0 ? rects[rects.length - 1]! : range.getBoundingClientRect()
+    const rect = rects.length > 0 ? rects[0]! : range.getBoundingClientRect()
     if (rect.width === 0 && rect.height === 0) { hide(); return }
     const position = selectionBarPosition(
-      { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, height: rect.height },
+      { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height },
       { width: window.innerWidth, height: window.innerHeight },
       { width: root.offsetWidth || 160, height: root.offsetHeight || 30 },
     )
@@ -188,6 +206,8 @@ export function startSelectionActions(options: { readers: MarkdownTurnReaders; t
     showTimer = window.setTimeout(() => {
       root.style.left = `${position.left}px`
       root.style.top = `${position.top}px`
+      root.style.setProperty('--dshca-arrow-x', `${position.arrowOffset}px`)
+      root.dataset.arrow = position.arrow
       root.style.display = 'flex'
     }, SELECTION_SHOW_DELAY_MS)
   }

@@ -23,34 +23,51 @@ describe('选区弹条位置', () => {
   const viewport = { width: 1000, height: 800 }
   const bar = { width: 160, height: 30 }
 
-  it('正常情况贴在选区末行右缘、垂直居中', () => {
+  it('正常情况放在选区首行上方，尖角指向该行选区中心', () => {
     const position = selectionBarPosition(
-      { left: 100, right: 300, top: 200, bottom: 220, height: 20 },
+      { left: 300, right: 500, top: 200, bottom: 220, width: 200, height: 20 },
       viewport,
       bar,
     )
-    expect(position.left).toBe(308)
-    expect(position.top).toBe(200 + 10 - 15)
+    expect(position.top).toBe(200 - 30 - 6)
+    expect(position.left).toBe(300)
+    expect(position.arrow).toBe('down')
+    // 行中心 400，相对弹条左缘 100。
+    expect(position.arrowOffset).toBe(100)
   })
 
-  it('选区贴近视口右缘时弹条往左收，不出屏', () => {
+  it('选区贴近视口右缘时弹条往左收，尖角仍指向行中心且不出弹条', () => {
     const position = selectionBarPosition(
-      { left: 880, right: 990, top: 200, bottom: 220, height: 20 },
+      { left: 880, right: 990, top: 200, bottom: 220, width: 110, height: 20 },
       viewport,
       bar,
     )
     expect(position.left).toBe(1000 - 160 - 8)
-    expect(position.left + bar.width).toBeLessThanOrEqual(1000)
+    expect(position.arrowOffset).toBe(Math.min(Math.max(935 - position.left, 10), 150))
+    expect(position.arrowOffset).toBeLessThanOrEqual(bar.width - 10)
   })
 
-  it('选区贴近视口底部时弹条往上收', () => {
+  it('选区贴近视口顶时翻到行下方，尖角朝上', () => {
     const position = selectionBarPosition(
-      { left: 100, right: 300, top: 790, bottom: 800, height: 10 },
+      { left: 300, right: 500, top: 20, bottom: 40, width: 200, height: 20 },
       viewport,
       bar,
     )
-    expect(position.top).toBe(800 - 30 - 8)
-    expect(position.top + bar.height).toBeLessThanOrEqual(800)
+    expect(position.arrow).toBe('up')
+    expect(position.top).toBe(40 + 6)
+    expect(position.top).toBeGreaterThanOrEqual(8)
+  })
+
+  it('行中心在弹条内时尖角对准行中心（右收后仍指向选中内容）', () => {
+    const position = selectionBarPosition(
+      { left: 900, right: 990, top: 200, bottom: 220, width: 90, height: 20 },
+      { width: 1000, height: 800 },
+      bar,
+    )
+    // 弹条左缘收到 832，行中心 945 → 偏移 113，仍在弹条内。
+    expect(position.left).toBe(832)
+    expect(position.arrowOffset).toBe(113)
+    expect(position.arrowOffset).toBeLessThanOrEqual(bar.width - 10)
   })
 })
 
