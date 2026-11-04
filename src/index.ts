@@ -15,6 +15,7 @@
 import { registerConversationTools } from './conversation-tools.tsx'
 import { registerSessionIdBar } from './session-id-bar/index.js'
 import { startMermaidDiagrams } from './mermaid.ts'
+import { injectTablePadCss } from './table-pad.ts'
 import { registerConversationSurfaces } from './conversation-surfaces.tsx'
 import { fallbackT } from './locales.ts'
 
@@ -59,6 +60,13 @@ function safeLogger(ctx: PluginContext): { info(message: string): void; warn(mes
 export function apply(ctx: PluginContext): void {
   const log = safeLogger(ctx)
   registerConversationTools(ctx)
+  try {
+    // 宽表格末列右边距：官方样式清零了末列右 padding，宽表滚到最右时
+    // 末格文字贴边；注入一条覆盖（只作用 md-table-wide 的滚动容器）。
+    injectTablePadCss()
+  } catch (error: unknown) {
+    log.warn(`table pad: inject failed — ${error instanceof Error ? error.message : String(error)}`)
+  }
   try {
     // 注册会话 ID 条（需要 slots）
     const slotHost = ctx.slots as Parameters<typeof registerSessionIdBar>[0]
