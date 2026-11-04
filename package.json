@@ -92,5 +92,8 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/threadharbor/dsh-chat-area.git"
+  },
+  "engines": {
+    "dsh": ">=0.2.0-rc.2 <0.3"
   }
 }
