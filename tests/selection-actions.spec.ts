@@ -23,33 +23,49 @@ describe('选区弹条位置', () => {
   const viewport = { width: 1000, height: 800 }
   const bar = { width: 160, height: 30 }
 
-  it('正常情况放在选区首行上方，尖角指向该行选区中心', () => {
+  it('单行选区：弹条在首行上方、右缘对齐选区右端，尖角指向该右端', () => {
     const position = selectionBarPosition(
-      { left: 300, right: 500, top: 200, bottom: 220, width: 200, height: 20 },
+      { left: 300, right: 500, top: 200, bottom: 220, height: 20 },
+      { left: 300, right: 500 },
       viewport,
       bar,
     )
     expect(position.top).toBe(200 - 30 - 6)
-    expect(position.left).toBe(300)
+    expect(position.left).toBe(500 - 160)
     expect(position.arrow).toBe('down')
-    // 行中心 400，相对弹条左缘 100。
-    expect(position.arrowOffset).toBe(100)
+    // 末行右端 500，相对弹条左缘 340 → 160，钳到弹条内 150。
+    expect(position.arrowOffset).toBe(bar.width - 10)
   })
 
-  it('选区贴近视口右缘时弹条往左收，尖角仍指向行中心且不出弹条', () => {
+  it('多行选区：垂直取首行上方，水平贴末行右缘', () => {
     const position = selectionBarPosition(
-      { left: 880, right: 990, top: 200, bottom: 220, width: 110, height: 20 },
+      { left: 100, right: 300, top: 200, bottom: 220, height: 20 },
+      { left: 100, right: 400 },
       viewport,
       bar,
     )
-    expect(position.left).toBe(1000 - 160 - 8)
-    expect(position.arrowOffset).toBe(Math.min(Math.max(935 - position.left, 10), 150))
-    expect(position.arrowOffset).toBeLessThanOrEqual(bar.width - 10)
+    expect(position.top).toBe(200 - 30 - 6)
+    expect(position.left).toBe(400 - 160)
+    // 右端 400 对到弹条左缘 240 处偏移 160，钳进弹条内 150。
+    expect(position.arrowOffset).toBe(bar.width - 10)
+  })
+
+  it('选区贴近视口右缘时弹条往左收，尖角仍指向末行右端且不出弹条', () => {
+    const position = selectionBarPosition(
+      { left: 880, right: 990, top: 200, bottom: 220, height: 20 },
+      { left: 880, right: 990 },
+      viewport,
+      bar,
+    )
+    // 末行右端 990，弹条右缘直接贴上（830+160+8 ≤ 1000，无需再收）。
+    expect(position.left).toBe(990 - 160)
+    expect(position.arrowOffset).toBe(bar.width - 10)
   })
 
   it('选区贴近视口顶时翻到行下方，尖角朝上', () => {
     const position = selectionBarPosition(
-      { left: 300, right: 500, top: 20, bottom: 40, width: 200, height: 20 },
+      { left: 300, right: 500, top: 20, bottom: 40, height: 20 },
+      { left: 300, right: 500 },
       viewport,
       bar,
     )
@@ -58,16 +74,15 @@ describe('选区弹条位置', () => {
     expect(position.top).toBeGreaterThanOrEqual(8)
   })
 
-  it('行中心在弹条内时尖角对准行中心（右收后仍指向选中内容）', () => {
+  it('末行右端很靠左时尖角仍钳在弹条内（防御极端布局）', () => {
     const position = selectionBarPosition(
-      { left: 900, right: 990, top: 200, bottom: 220, width: 90, height: 20 },
-      { width: 1000, height: 800 },
+      { left: 100, right: 200, top: 200, bottom: 220, height: 20 },
+      { left: 100, right: 120 },
+      viewport,
       bar,
     )
-    // 弹条左缘收到 832，行中心 945 → 偏移 113，仍在弹条内。
-    expect(position.left).toBe(832)
-    expect(position.arrowOffset).toBe(113)
     expect(position.arrowOffset).toBeLessThanOrEqual(bar.width - 10)
+    expect(position.arrowOffset).toBeGreaterThanOrEqual(10)
   })
 })
 
