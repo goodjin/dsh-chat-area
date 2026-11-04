@@ -1,20 +1,77 @@
 import { describe, expect, it } from 'vitest'
-import { ToolsState } from '../src/tools-state.ts'
-describe('conversation tools lifetimes', () => {
-  it('isolates sessions and preserves tabs on collapse', () => {
+import { CHAT_TAB_ID, ToolsState } from '../src/tools-state.ts'
+describe('conversation tabs workspace', () => {
+  it('seeds a brand-new session with the workspace files tab active and no chat tab', () => {
     const state = new ToolsState()
+    state.seed('one', false)
+    const s = state.get('one')
+    expect(s.tabs.map(t => t.kind)).toEqual(['files'])
+    expect(s.active).toBe(s.tabs[0]!.id)
+    expect(s.tabs.find(t => t.kind === 'chat')).toBeUndefined()
+  })
+  it('seeds an existing session with the conversation tab active', () => {
+    const state = new ToolsState()
+    state.seed('one', true)
+    const s = state.get('one')
+    expect(s.tabs.map(t => t.kind)).toEqual(['chat'])
+    expect(s.active).toBe(CHAT_TAB_ID)
+  })
+  it('seeding twice keeps the first decision', () => {
+    const state = new ToolsState()
+    state.seed('one', false)
+    state.seed('one', true)
+    expect(state.get('one').tabs.map(t => t.kind)).toEqual(['files'])
+  })
+  it('first send adds one conversation tab and switches to it, keeping tool tabs', () => {
+    const state = new ToolsState()
+    state.seed('one', false)
+    const files = state.get('one').tabs[0]!
+    state.activateChat('one')
+    const s = state.get('one')
+    expect(s.tabs.map(t => t.kind)).toEqual(['files', 'chat'])
+    expect(s.active).toBe(CHAT_TAB_ID)
+    state.activateChat('one')
+    expect(state.get('one').tabs).toHaveLength(2)
+    state.select('one', files.id)
+    expect(state.get('one').active).toBe(files.id)
+  })
+  it('an old session keeps a single conversation tab across sends', () => {
+    const state = new ToolsState()
+    state.seed('one', true)
+    state.activateChat('one')
+    state.activateChat('one')
+    expect(state.get('one').tabs.map(t => t.kind)).toEqual(['chat'])
+    expect(state.get('one').active).toBe(CHAT_TAB_ID)
+  })
+  it('the conversation tab cannot be closed, even with tool tabs around it', () => {
+    const state = new ToolsState()
+    state.seed('one', true)
+    const chat = state.get('one').tabs.find(t => t.kind === 'chat')!
+    const browser = state.open('one', 'browser', 'Browser')
+    state.close('one', CHAT_TAB_ID)
+    expect(state.get('one').tabs.map(t => t.kind)).toEqual(['chat', 'browser'])
+    expect(state.get('one').active).toBe(browser.id)
+    state.close('one', browser.id)
+    expect(state.get('one').tabs.map(t => t.kind)).toEqual(['chat'])
+    expect(state.get('one').active).toBe(CHAT_TAB_ID)
+    expect(chat.controller.signal.aborted).toBe(false)
+    state.dispose()
+  })
+  it('isolates sessions and preserves tabs across activations', () => {
+    const state = new ToolsState()
+    state.seed('one', false)
     const tab = state.open('one', 'browser', 'Browser')
-    state.toggle('one')
-    expect(state.get('one').expanded).toBe(false)
-    expect(state.get('one').tabs[0]).toBe(tab)
     expect(tab.controller.signal.aborted).toBe(false)
     expect(state.get('two').tabs).toEqual([])
-    state.toggle('one')
-    expect(state.get('one').active).toBe(tab.id)
+    state.activateChat('one')
+    expect(state.get('one').tabs.at(-1)?.kind).toBe('chat')
+    expect(state.get('one').tabs[1]).toBe(tab)
+    expect(state.get('one').active).toBe(CHAT_TAB_ID)
   })
-  it('closing a tab aborts its resources and selects the remaining tab', () => {
+  it('closing a tool tab aborts its resources and selects the remaining tab', () => {
     const state = new ToolsState()
-    const a = state.open('one', 'files', 'Files')
+    state.seed('one', false)
+    const a = state.open('one', 'files', 'Files', 'sidebar://files', undefined, true)
     const b = state.open('one', 'terminal', 'Terminal')
     state.close('one', b.id)
     expect(b.controller.signal.aborted).toBe(true)
@@ -25,9 +82,11 @@ describe('conversation tools lifetimes', () => {
   })
   it('deduplicates resources but permits independent terminal and browser tabs', () => {
     const state = new ToolsState()
-    expect(state.open('one','files','Files')).toBe(state.open('one','files','Files'))
-    const first = state.open('one','terminal','Terminal','sidebar://terminal',undefined,true)
-    const second = state.open('one','terminal','Terminal','sidebar://terminal',undefined,true)
+    state.seed('one', false)
+    expect(state.open('one', 'files', 'Files', 'sidebar://files')).toBe(state.open('one', 'files', 'Files', 'sidebar://files'))
+    const first = state.open('one', 'terminal', 'Terminal', 'sidebar://terminal', undefined, true)
+    const second = state.open('one', 'terminal', 'Terminal', 'sidebar://terminal', undefined, true)
     expect(first.id).not.toBe(second.id)
+    state.dispose()
   })
 })

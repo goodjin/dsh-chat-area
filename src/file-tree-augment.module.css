@@ -1,0 +1,27 @@
+/* 文件树行控件：多选框占位在行首，编辑按钮悬浮才出现。 */
+/* 容器不占布局（display:contents），树的原有排版不受影响。 */
+.root { display: contents; }
+
+/* 文件行相对定位让覆盖层有锚；给行按钮让出多选框的宽度。 */
+.root li[data-files-entry="file"] { position: relative; }
+.root li[data-files-entry="file"] > button:first-of-type { padding-left: 26px; }
+
+/* 多选框：钉在行首、垂直居中，行内任何位置都能点中。 */
+.root li[data-files-entry="file"] > [data-chat-file-check] {
+  position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+  width: 14px; height: 14px; margin: 0; cursor: pointer; accent-color: var(--ds-brand, #4d6bfe); z-index: 1;
+}
+
+/* 编辑按钮：行尾悬浮出现；不挤占文件名布局。 */
+.root li[data-files-entry="file"] > [data-chat-file-edit] {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  border: 1px solid var(--ds-border, #8883); border-radius: 5px;
+  background: var(--ds-bg-container, #fff); color: inherit;
+  font-size: 11px; line-height: 1; padding: 3px 6px; cursor: pointer;
+  opacity: 0; pointer-events: none; z-index: 1;
+}
+.root li[data-files-entry="file"]:hover > [data-chat-file-edit],
+.root li[data-files-entry="file"] > [data-chat-file-edit]:focus-visible {
+  opacity: 1; pointer-events: auto;
+}
+.root li[data-files-entry="file"] > [data-chat-file-edit]:hover { background: var(--ds-bg-hover, #8882); }
