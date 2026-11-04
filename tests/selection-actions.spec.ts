@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { selectionAllowed, selectionBarPosition } from '../src/selection-actions.ts'
+import { SELECTION_SHOW_DELAY_MS, selectionAllowed, selectionBarPosition } from '../src/selection-actions.ts'
 
 /** 造一个最小 closest 面：命中集合里的选择器（按逗号拆开比对）返回占位元素，否则 null。 */
 function anchor(matching: readonly string[]): { closest(selector: string): unknown } {
@@ -85,5 +85,11 @@ describe('选区资格判定', () => {
   it('弹条未挂载时 .dshca-selbar 不参与排除（防御：不该出现这个状态）', () => {
     const probe = anchor(['.dshca-selbar', '[data-conversation-scroll]'])
     expect(selectionAllowed(probe as never, false)).toBe(true)
+  })
+})
+
+describe('弹条出现时机', () => {
+  it('选中后停顿 1 秒才弹（用户要求的延迟，钉住防止误改）', () => {
+    expect(SELECTION_SHOW_DELAY_MS).toBe(1000)
   })
 })

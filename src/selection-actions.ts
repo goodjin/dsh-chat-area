@@ -20,6 +20,9 @@ import { createMarkdownTurnReaders } from './markdown-turn-sources.ts'
 import type { MarkdownTurnReaders } from './markdown-turn-sources.ts'
 import type { RuntimeT } from './locales.ts'
 
+/** 选中停下多少毫秒后才弹条：拖拽选择期间不弹，停下 1 秒才出现。 */
+export const SELECTION_SHOW_DELAY_MS = 1000
+
 /** 弹条与提示的样式；类名带 dshca- 前缀避免与页面样式冲突。 */
 const BAR_CSS = [
   '.dshca-selbar{position:fixed;z-index:60;display:flex;gap:2px;padding:2px;',
@@ -109,7 +112,11 @@ export function startSelectionActions(options: { readers: MarkdownTurnReaders; t
   root.style.display = 'none'
   document.body.appendChild(root)
 
-  const hide = (): void => { root.style.display = 'none' }
+  let showTimer = 0
+  const hide = (): void => {
+    window.clearTimeout(showTimer)
+    root.style.display = 'none'
+  }
   const clearSelection = (): void => {
     try { window.getSelection()?.removeAllRanges() } catch { /* 有的实现会抛，落下去 */ }
     hide()
@@ -175,12 +182,19 @@ export function startSelectionActions(options: { readers: MarkdownTurnReaders; t
       { width: window.innerWidth, height: window.innerHeight },
       { width: root.offsetWidth || 160, height: root.offsetHeight || 30 },
     )
-    root.style.left = `${position.left}px`
-    root.style.top = `${position.top}px`
-    root.style.display = 'flex'
+    // 选区已稳定，但**停顿 SELECTION_SHOW_DELAY_MS 后才出现**；期间任何
+    // 选择变化（继续拖选、点别处塌缩）都会清掉这个定时器并先收起。
+    window.clearTimeout(showTimer)
+    showTimer = window.setTimeout(() => {
+      root.style.left = `${position.left}px`
+      root.style.top = `${position.top}px`
+      root.style.display = 'flex'
+    }, SELECTION_SHOW_DELAY_MS)
   }
   const onSelectionChange = (): void => {
     cancelAnimationFrame(raf)
+    // 选择还在变化（拖拽中）立即收起，并重排稳定计时——松手停下 1 秒后才弹。
+    hide()
     raf = requestAnimationFrame(evaluate)
   }
   const onMouseDown = (event: MouseEvent): void => {
@@ -192,6 +206,7 @@ export function startSelectionActions(options: { readers: MarkdownTurnReaders; t
     hide()
   }
   const onScroll = (): void => { hide() }
+  const onResize = (): void => { hide() }
   const onKeyDown = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') hide()
   }
@@ -200,9 +215,12 @@ export function startSelectionActions(options: { readers: MarkdownTurnReaders; t
   document.addEventListener('mousedown', onMouseDown, true)
   document.addEventListener('scroll', onScroll, true)
   document.addEventListener('keydown', onKeyDown)
+  window.addEventListener('resize', onResize)
 
   return () => {
     cancelAnimationFrame(raf)
+    window.clearTimeout(showTimer)
+    window.removeEventListener('resize', onResize)
     document.removeEventListener('selectionchange', onSelectionChange)
     document.removeEventListener('mousedown', onMouseDown, true)
     document.removeEventListener('scroll', onScroll, true)
