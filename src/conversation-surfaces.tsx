@@ -192,13 +192,8 @@ export function registerConversationSurfaces(ctx: Surface): void {
 
   registerLocales(ctx)
 
-  // 会话尾部文件卡片：通用座位，排在官方改动卡片之后。
-  registerMarkdownTurn(slots as unknown as Parameters<typeof registerMarkdownTurn>[0], readers)
-
-  // 本机文件卡：composer 上方的附件座位，入口在会话头部（会话 ID 左侧）。
-  registerLocalFileComposer(slots as unknown as Parameters<typeof registerLocalFileComposer>[0], readers, dshT)
-
   // 答案卡片 wrap：包住 assistant-step，与 acp-agent 的进程段渲染共用一个挂载点。
+  // 它最要紧，所以**第一个**注册；后面的表面各自隔离，谁失败都不拖垮它。
   let removeRenderer: (() => void) | undefined
   let originalComponent: unknown
   let installing = false
@@ -231,4 +226,20 @@ export function registerConversationSurfaces(ctx: Surface): void {
   }
   const unsubscribeRenderer = slots.subscribe(NODE_SLOT, attachRenderer)
   attachRenderer()
+
+  // 会话尾部文件卡片：通用座位，排在官方改动卡片之后。
+  try {
+    registerMarkdownTurn(slots as unknown as Parameters<typeof registerMarkdownTurn>[0], readers)
+  } catch (error) {
+    if (typeof console !== 'undefined') console.warn(`[threadharbor-chat-area] markdown turn: registration failed — ${error instanceof Error ? error.message : String(error)}`)
+  }
+
+  // 本机文件卡：composer 上方的 overlay 座位，入口在会话头部（会话 ID 左侧）。
+  // 与 wrap 相互隔离：座位冲突（比如和宿主附件区撞了）只损失本机文件卡，
+  // 不能再把答案卡片一起带走（2026-11-04 现场）。
+  try {
+    registerLocalFileComposer(slots as unknown as Parameters<typeof registerLocalFileComposer>[0], readers, dshT)
+  } catch (error) {
+    if (typeof console !== 'undefined') console.warn(`[threadharbor-chat-area] local file composer: registration failed — ${error instanceof Error ? error.message : String(error)}`)
+  }
 }

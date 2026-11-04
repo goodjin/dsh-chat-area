@@ -1,14 +1,17 @@
 /**
  * 本机文件卡：顶栏「打开本机文件」→ 系统文件选择框 → 读入文本 → 在输入框
- * （composer）上方的 `conversation.input.attachments` 座位里展开成编辑卡片。
+ * （composer）上方的 `conversation.input.overlay` 座位里展开成编辑卡片。
  *
  * 入口（会话头部）和卡片（composer）分属两个座位，靠本模块的**会话级共享
  * store** 连接：头部写入，卡片订阅。seq 每次写入自增，卡片组件以 seq 为 key
  * 重挂载——新选一个文件总是直接进入编辑态，不受上一次收起状态影响。
  *
- * 选 composer 的 attachments 座位放卡片的原因：它是会话作用域、每会话必渲染
- * （轮次尾的文件区在没有文件时整块不渲染，接不住「无文件会话里开本机文件」），
- * 且位置就在输入框正上方——本机文件内容本来就是喂给会话的，放在那里语义顺。
+ * 选 composer 的 overlay 座位放卡片的原因：它是会话作用域的 **list** 槽位、每会话
+ * 必渲染（轮次尾的文件区在没有文件时整块不渲染，接不住「无文件会话里开本机文件」），
+ * 且锚点就在输入框正上方——本机文件内容本来就是喂给会话的，放在那里语义顺。
+ * 不能用 `conversation.input.attachments`：那是宿主附件区的 **single** 槽位，宿主
+ * 附件区已占 priority 0，同优先级重复注册直接抛错——一抛就把同一函数里排在后面的
+ * 答案卡片 wrap 一起带走（2026-11-04 现场：答案卡片没有框、没有编辑按钮）。
  */
 import { useRef, useState, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
@@ -236,9 +239,9 @@ export function registerLocalFileComposer(
   readers: MarkdownTurnReaders,
   t: RuntimeT,
 ): () => void {
-  return slots.inject('conversation.input.attachments', () => slots.register(
+  return slots.inject('conversation.input.overlay', () => slots.register(
     {
-      name: 'conversation.input.attachments',
+      name: 'conversation.input.overlay',
       id: LOCAL_FILE_ID,
       order: 20,
       locale: NAMESPACE,
