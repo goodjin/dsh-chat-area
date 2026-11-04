@@ -16,6 +16,7 @@ import { registerConversationTools } from './conversation-tools.tsx'
 import { registerSessionIdBar } from './session-id-bar/index.js'
 import { startMermaidDiagrams } from './mermaid.ts'
 import { injectTablePadCss } from './table-pad.ts'
+import { startSelectionActionsFromRemote } from './selection-actions.ts'
 import { registerConversationSurfaces } from './conversation-surfaces.tsx'
 import { fallbackT } from './locales.ts'
 
@@ -66,6 +67,14 @@ export function apply(ctx: PluginContext): void {
     injectTablePadCss()
   } catch (error: unknown) {
     log.warn(`table pad: inject failed — ${error instanceof Error ? error.message : String(error)}`)
+  }
+  try {
+    // 会话区选区弹条：选中文字末尾弹「添加到会话 / 发送会话」。
+    const disposeSelection = startSelectionActionsFromRemote(() => ctx.get('remote'), fallbackT)
+    ctx.effect(() => disposeSelection, 'threadharbor-chat-area: selection actions')
+    log.info('selection actions: started')
+  } catch (error: unknown) {
+    log.warn(`selection actions: start failed — ${error instanceof Error ? error.message : String(error)}`)
   }
   try {
     // 注册会话 ID 条（需要 slots）

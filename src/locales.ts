@@ -34,6 +34,7 @@ export type ChatAreaLocaleKey =
   | 'markdownTurn.copyFailed' | 'markdownTurn.filesAll' | 'markdownTurn.filesAllAria'
   | 'markdownTurn.filesCollapseAria' | 'markdownTurn.openFile'
   | 'markdownTurn.localFileHeader' | 'markdownTurn.localFileTooLarge'
+  | 'selection.addToChat' | 'selection.sendToChat' | 'selection.fillFailed'
 
 export const zh: Record<ChatAreaLocaleKey, string> = {
   'mermaid.label': 'Mermaid',
@@ -91,6 +92,9 @@ export const zh: Record<ChatAreaLocaleKey, string> = {
   'markdownTurn.openFile': '打开本机文件',
   'markdownTurn.localFileHeader': '以下为本机文件 {name} 的内容：',
   'markdownTurn.localFileTooLarge': '文件超过 5 MB，没有打开',
+  'selection.addToChat': '添加到会话',
+  'selection.sendToChat': '发送会话',
+  'selection.fillFailed': '没有找到输入框',
 }
 
 export const en: Record<ChatAreaLocaleKey, string> = {
@@ -149,6 +153,9 @@ export const en: Record<ChatAreaLocaleKey, string> = {
   'markdownTurn.openFile': 'Open a local file',
   'markdownTurn.localFileHeader': 'Below is the content of local file {name}:',
   'markdownTurn.localFileTooLarge': 'The file exceeds 5 MB and was not opened',
+  'selection.addToChat': 'Add to chat',
+  'selection.sendToChat': 'Send to chat',
+  'selection.fillFailed': 'Composer not found',
 }
 
 /** `{name}` 形式的参数插值；模板里没有对应参数时原样保留占位符。 */
