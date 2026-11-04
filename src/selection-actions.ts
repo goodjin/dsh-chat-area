@@ -62,36 +62,37 @@ export function selectionAllowed(anchor: SelectionAnchor | null, barInDocument: 
 }
 
 /**
- * 计算弹条位置：放在选区**首行**的上一行，带一个尖角指向选中内容。
+ * 计算弹条位置：垂直放在选区**首行**的上一行，水平贴在选中内容**最右边**。
  *
  * - 默认在首行上方（箭头朝下）；首行贴近视口顶时翻到行下方（箭头朝上）。
- * - 水平上弹条左缘先对齐选区行首，出右视口往左收；尖角指向该行选区的
- *   水平中心（钳在弹条内，别探出边缘）。
- * @param rect - 选区首行的客户区矩形。
+ * - 弹条右缘对齐选区**末行**的右缘（单行选区即该行右端），出右视口往左收；
+ *   尖角水平上对准末行右端（钳在弹条内，别探出边缘）。
+ * @param firstRect - 选区首行的客户区矩形（决定垂直位置）。
+ * @param lastRect - 选区末行的客户区矩形（决定水平位置）。
  * @param viewport - 视口尺寸。
  * @param bar - 弹条尺寸。
  * @returns 定位坐标、箭头水平偏移（相对弹条左缘）与箭头方向。
  */
 export function selectionBarPosition(
-  rect: { left: number; right: number; top: number; bottom: number; width: number; height: number },
+  firstRect: { left: number; right: number; top: number; bottom: number; height: number },
+  lastRect: { left: number; right: number },
   viewport: { width: number; height: number },
   bar: { width: number; height: number },
 ): { left: number; top: number; arrowOffset: number; arrow: 'down' | 'up' } {
   const margin = 8
   const gap = 6
   let arrow: 'down' | 'up' = 'down'
-  let top = rect.top - bar.height - gap
+  let top = firstRect.top - bar.height - gap
   if (top < margin) {
     // 首行贴近视口顶：翻到选区行下方，尖角朝上。
     arrow = 'up'
-    top = rect.bottom + gap
+    top = firstRect.bottom + gap
   }
   if (top + bar.height + margin > viewport.height) top = viewport.height - margin - bar.height
-  let left = rect.left
+  let left = lastRect.right - bar.width
   if (left + bar.width + margin > viewport.width) left = viewport.width - margin - bar.width
   if (left < margin) left = margin
-  const arrowX = rect.left + rect.width / 2
-  const arrowOffset = Math.min(Math.max(arrowX - left, 10), bar.width - 10)
+  const arrowOffset = Math.min(Math.max(lastRect.right - left, 10), bar.width - 10)
   return { left, top, arrowOffset, arrow }
 }
 
@@ -192,11 +193,14 @@ export function startSelectionActions(options: { readers: MarkdownTurnReaders; t
     const text = sel.toString().trim()
     if (text === '') { hide(); return }
     // 首行矩形：弹条放在选区第一行的上一行，尖角指向选中内容。
+    // 首行矩形定垂直位置（首行上方），末行右缘定水平位置（贴选中内容最右边）。
     const rects = range.getClientRects()
-    const rect = rects.length > 0 ? rects[0]! : range.getBoundingClientRect()
-    if (rect.width === 0 && rect.height === 0) { hide(); return }
+    const firstRect = rects.length > 0 ? rects[0]! : range.getBoundingClientRect()
+    const lastRect = rects.length > 0 ? rects[rects.length - 1]! : firstRect
+    if (firstRect.width === 0 && firstRect.height === 0) { hide(); return }
     const position = selectionBarPosition(
-      { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height },
+      { left: firstRect.left, right: firstRect.right, top: firstRect.top, bottom: firstRect.bottom, height: firstRect.height },
+      { left: lastRect.left, right: lastRect.right },
       { width: window.innerWidth, height: window.innerHeight },
       { width: root.offsetWidth || 160, height: root.offsetHeight || 30 },
     )
