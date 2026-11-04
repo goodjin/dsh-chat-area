@@ -1,5 +1,3 @@
-.toggle { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border:0; border-radius:6px; background:transparent; color:inherit; cursor:pointer; -webkit-app-region:no-drag; }
-.toggle:hover,.toggle[aria-expanded=true] { background:var(--ds-bg-hover, #8882); }
 .switcher,.chat { display:flex; flex:0 0 auto; flex-direction:column; min-height:0; min-width:0; overflow:hidden; }
 /* 工具标签激活时条带撑满（会话标签激活时缩回工具行+标签行高度）。 */
 .chat[data-chat-strip-live] { flex:1 1 0; }
@@ -7,6 +5,8 @@
 .tools { display:flex; flex-direction:column; min-height:0; min-width:0; height:100%; }
 .toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:6px; padding:10px 16px; border-bottom:1px solid var(--ds-border,#8883); }
 .toolbar button,.toolbar select,.tabs button { color:inherit; background:transparent; border:1px solid var(--ds-border,#8883); border-radius:6px; padding:6px 10px; cursor:pointer; }
+.toolbar button[aria-pressed=true] { background:var(--ds-bg-hover,#8882); }
+.iconEntry { display:inline-flex; align-items:center; justify-content:center; width:30px; height:28px; padding:0; }
 .preference { margin-left:auto; font-size:12px; display:flex; gap:8px; align-items:center; }
 .tabs { display:flex; flex-wrap:wrap; gap:4px; align-items:center; min-width:0; }
 .tab { display:flex; gap:2px; }

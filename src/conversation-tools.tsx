@@ -68,14 +68,6 @@ export function registerConversationTools(ctx: any) {
     onEdit: path => { const id = currentId(); if (id !== undefined) openWorkspaceEditor(id, path) },
     subscribeChanges: listener => checkedFiles.subscribe(listener),
   })
-  function Toggle() {
-    const id = useSyncExternalStore(ctx.get('uiSession').adapter.current.subscribe, currentId, currentId)
-    const s = useSyncExternalStore(toolsState.subscribe, () => toolsState.get(id ?? ''), () => toolsState.get(id ?? ''))
-    const activeTab = s.tabs.find(t => t.id === s.active)
-    const toolActive = activeTab !== undefined && activeTab.kind !== 'chat'
-    return <button type="button" className={css.toggle} disabled={!id} aria-label="打开工作区文件" title="打开工作区文件"
-      aria-expanded={toolActive} data-chat-tools-toggle="" onClick={() => { if (id) toolsState.open(id, 'files', '工作区文件') }}><IconFolderOpenOutlineRegular size={16} /></button>
-  }
   function ToolArea(props: any) {
     const id = props.sessionId as string
     const s = useSyncExternalStore(toolsState.subscribe, () => toolsState.get(id), () => toolsState.get(id))
@@ -94,14 +86,25 @@ export function registerConversationTools(ctx: any) {
         setError('')
       } catch (err) { setError(`读取失败：${String(err)}`) }
     }
+    // 视图开关：工作区文件/浏览器/终端是独占视图（按钮即入口，不产生额外标签片）。
+    const openView = (kind: 'files' | 'browser' | 'terminal') => {
+      const existing = s.tabs.find(t => t.kind === kind)
+      if (existing !== undefined) { toolsState.select(id, existing.id); return }
+      try { adapter.open(id, kind) } catch (err) { setError(String(err)) }
+    }
+    const activeTab = s.tabs.find(t => t.id === s.active)
+    const activeKind = activeTab?.kind
+    const chipTabs = s.tabs.filter(tab => tab.kind === 'chat' || tab.kind === 'local' || tab.kind === 'text')
     return <section className={css.tools} data-chat-tools="" aria-label="会话工具">
       <div className={css.toolbar}>
-        <button onClick={() => pick.current?.click()}>打开本机文件</button>
-        {(['files', 'browser', 'terminal'] as const).map(kind => <button key={kind} onClick={() => {
-          try { adapter.open(id, kind) } catch (err) { setError(String(err)) }
+        <button type="button" className={css.iconEntry} aria-label="打开本机文件" title="打开本机文件" onClick={() => pick.current?.click()}>
+          <IconFolderOpenOutlineRegular size={16} />
+        </button>
+        {(['files', 'browser', 'terminal'] as const).map(kind => <button key={kind} type="button" aria-pressed={activeKind === kind} onClick={() => {
+          openView(kind)
         }}>{({ files: '工作区文件', browser: '浏览器', terminal: '终端' })[kind]}</button>)}
         <div className={css.tabs} role="tablist" aria-label="会话区标签">
-          {s.tabs.map(tab => <div className={css.tab} key={tab.id}>
+          {chipTabs.map(tab => <div className={css.tab} key={tab.id}>
             <button role="tab" aria-selected={s.active === tab.id} onClick={() => toolsState.select(id, tab.id)}>{tab.title}</button>
             {tab.kind !== 'chat' && <button aria-label={`关闭 ${tab.title}`} onClick={() => { adapter.close(id, tab.id); docs.delete(tab.id) }}>×</button>}
           </div>)}
@@ -137,7 +140,7 @@ export function registerConversationTools(ctx: any) {
     const s = useSyncExternalStore(toolsState.subscribe, () => toolsState.get(id ?? ''), () => toolsState.get(id ?? ''))
     const activeTab = s.tabs.find(t => t.id === s.active)
     const toolActive = activeTab !== undefined && activeTab.kind !== 'chat'
-    const [mounts, setMounts] = useState<{ button: HTMLElement; body: HTMLElement } | null>(null)
+    const [mounts, setMounts] = useState<{ button: HTMLElement | null; body: HTMLElement } | null>(null)
     const [reference, setReference] = useState<any>(null)
     useEffect(() => {
       if (!id) { setReference(null); return }
@@ -148,27 +151,24 @@ export function registerConversationTools(ctx: any) {
     }, [id])
     useLayoutEffect(() => {
       let attached: HTMLElement | null = null
-      let button: HTMLElement | null = null
       let body: HTMLElement | null = null
       const attach = () => {
         const leading = document.querySelector<HTMLElement>('[data-conversation-header-leading]')
         let root = leading?.closest('header')?.parentElement
         while (root && !root.querySelector('[data-conversation-content]')) root = root.parentElement
         if (!leading || !root || attached === root) return
-        button?.remove(); body?.remove()
+        body?.remove()
         attached = root
-        button = document.createElement('span'); button.style.display = 'inline-flex'
-        leading.prepend(button)
         body = document.createElement('div'); body.className = css.chat ?? ''
         body.dataset.chatToolsMount = ''
         const content = root.querySelector('[data-conversation-content]')
         if (content) root.insertBefore(body, content); else root.append(body)
-        setMounts({ button, body })
+        setMounts({ button: null as unknown as HTMLElement, body })
       }
       attach()
       const observer = new MutationObserver(attach)
       observer.observe(document.body, { childList: true, subtree: true })
-      return () => { observer.disconnect(); button?.remove(); body?.remove() }
+      return () => { observer.disconnect(); body?.remove() }
     }, [])
     // 会话接线：首次见到会话时按内容相位定默认标签（hero=新会话→工作区文件；
     // active=旧会话→会话标签），并侦测发送（聊天流新增用户消息→切到会话标签）。
@@ -249,7 +249,6 @@ export function registerConversationTools(ctx: any) {
     }, [mounts, toolActive, id])
     if (!mounts) return null
     return <>
-      {createPortal(<Toggle />, mounts.button)}
       {reference && reference.id === id && createPortal(
         <props.SessionProvider session={reference.ref}>{props.renderSlot(ROOT, {})}</props.SessionProvider>, mounts.body)}
     </>
@@ -301,8 +300,9 @@ export function registerConversationTools(ctx: any) {
       if (!['https:', 'http:'].includes(url.protocol) || url.origin === location.origin) return
       const id = currentId(); if (!id) return
       event.preventDefault(); event.stopImmediatePropagation()
-      if (readDefaultLinkOpenMode() === 'browser') openInBrowser(url.href)
-      else adapter.open(id, 'browser', { params: { url: url.href }, revealIfOpened: false })
+      if (readDefaultLinkOpenMode() === 'browser') { openInBrowser(url.href); return }
+      for (const tab of toolsState.get(id).tabs.filter(t => t.kind === 'browser')) adapter.close(id, tab.id)
+      adapter.open(id, 'browser', { params: { url: url.href } })
     }
     document.addEventListener('click', click, true)
     return () => document.removeEventListener('click', click, true)
