@@ -15,7 +15,6 @@ import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore } 
 import type { ReactNode } from 'react'
 import { CodeBlock, FileTypeIcon, IconChevronDownOutlineRegular, IconChevronUpOutlineRegular, IconCloseOutlineRegular, IconEditOutlineRegular, IconNewChatOutlineRegular, IconSendOutlineRegular, IconWarningOutlineRegular, MarkdownText, Toast, classifyFileType, languageForPath } from '@deepseek-ai/dsh-client-ui-primitives'
 import { FileOpenSplit } from './markdown-turn-open.tsx'
-import { ActiveFileBar } from './markdown-turn-active-bar.tsx'
 import { getFileState, setActiveFilePath, subscribeActiveFilePath, toggleFileEditing, toggleFileOpen } from './markdown-turn-active.ts'
 import type { MarkdownLabels } from '@deepseek-ai/dsh-client-ui-primitives'
 import { fallbackT, NAMESPACE } from './locales.ts'
@@ -297,7 +296,7 @@ function MarkdownDocument({ sessionId, path, readers, t, onNotify }: {
   t: RuntimeT
   onNotify?: (message: string) => void
 }): ReactNode {
-  // 展开/编辑态存共享 store（不是本地 useState）：顶部 ActiveFileBar 的编辑/展开
+  // 展开/编辑态存共享 store（不是本地 useState）：文档卡自己的编辑/展开
   // 按钮和这里的内联按钮改同一份，两处才能同步。按 path 取值，多个文件各自独立。
   const fileUi = useSyncExternalStore(subscribeActiveFilePath, () => getFileState(path), () => getFileState(path))
   const open = fileUi.open
@@ -676,7 +675,6 @@ export function MarkdownTurnTail({ sessionId, turn, t, readers, onNotify }: Mark
     setListOpen(value => !value)
   }
   return <div ref={rootRef} className={css.root} data-markdown-turn="" {...(folded ? { 'data-markdown-folded': '' } : {})}>
-    {shown.length > 0 && <ActiveFileBar sessionId={id} paths={paths} readers={readers} t={translate} />}
     {shown.map(path => <MarkdownDocument key={path} sessionId={id} path={path} readers={readers} t={translate} {...(onNotify === undefined ? {} : { onNotify })} />)}
     {paths.length > FOLDED_FILE_COUNT && <div className={css.edge}>
       <ExpandButton open={listOpen} label={listLabel} caption={listCount} onClick={toggleList} kind="more" />
