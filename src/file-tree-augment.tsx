@@ -57,6 +57,8 @@ export interface AugmentHandlers {
   onToggle(path: string, checked: boolean): void
   /** 点击悬浮编辑按钮。 */
   onEdit(path: string): void
+  /** 订阅勾选状态变化（发送清空、跨标签改动）以回同步勾选框；可选。 */
+  subscribeChanges?(listener: () => void): () => void
 }
 
 /** 挂钩插槽表：找到 FilesBody 条目并以更低优先级重注册 wrap。 */
@@ -142,7 +144,15 @@ export function FilesTreeAugment(props: { handlers: AugmentHandlers; children?: 
         row.append(edit)
       }
     }
+    // 勾选状态在会话状态一侧变化（发送清空、跨标签改动）时回同步已挂的勾选框。
+    const sync = (): void => {
+      for (const check of root.querySelectorAll<HTMLInputElement>(`[${CHECK_ATTR}]`)) {
+        const path = check.getAttribute('data-chat-file-path')
+        if (path !== null) check.checked = handlersRef.current.checked(path)
+      }
+    }
     decorate()
+    const unsubscribeChanges = handlersRef.current.subscribeChanges?.(sync)
     const observer = new MutationObserver(decorate)
     observer.observe(root, { childList: true, subtree: true })
     const click = (event: Event): void => {
@@ -164,6 +174,7 @@ export function FilesTreeAugment(props: { handlers: AugmentHandlers; children?: 
     }
     root.addEventListener('click', click)
     return () => {
+      unsubscribeChanges?.()
       observer.disconnect()
       root.removeEventListener('click', click)
     }

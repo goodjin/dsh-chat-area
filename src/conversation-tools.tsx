@@ -66,6 +66,7 @@ export function registerConversationTools(ctx: any) {
       toolsNotice.clear(id)
     },
     onEdit: path => { const id = currentId(); if (id !== undefined) openWorkspaceEditor(id, path) },
+    subscribeChanges: listener => checkedFiles.subscribe(listener),
   })
   function Toggle() {
     const id = useSyncExternalStore(ctx.get('uiSession').adapter.current.subscribe, currentId, currentId)
