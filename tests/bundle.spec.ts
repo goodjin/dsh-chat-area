@@ -45,6 +45,8 @@ describe('lib/client.js 是页面能装的产物', () => {
     const react = { createElement: () => null } as unknown as object
     const primitivesStub = new Proxy({}, { get: () => () => null })
     const loaded = row.factory((specifier: string) => {
+      if (specifier === 'react-dom') return { createPortal: () => null }
+      if (specifier.startsWith('@deepseek-ai/dsh-client-ui-sidebar-')) return { apply: () => {}, inject: [] }
       if (specifier === 'react' || specifier === 'react/jsx-runtime') return react
       if (specifier === '@deepseek-ai/dsh-client-ui-primitives') return primitivesStub
       throw new Error(`产物请求了模块表外的模块：${specifier}`)

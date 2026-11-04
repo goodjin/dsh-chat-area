@@ -26,6 +26,11 @@ const root = fileURLToPath(new URL('.', import.meta.url))
 const cssPrefix = '\0threadharbor-css:'
 const cssSuffix = '.mjs'
 const externals = new Set([
+  '@deepseek-ai/dsh-client-ui-sidebar-files',
+  '@deepseek-ai/dsh-client-ui-sidebar-browser',
+  '@deepseek-ai/dsh-client-ui-sidebar-terminal',
+  '@deepseek-ai/dsh-client-ui-sidebar-documentpreview',
+  'react-dom',
   'react',
   'react/jsx-runtime',
   '@deepseek-ai/dsh-client-ui-primitives',

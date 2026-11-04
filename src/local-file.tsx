@@ -75,6 +75,10 @@ function currentSessionIdFromDom(): string | undefined {
  * 风格的编辑卡（聚焦描边变色、动作行分隔线、圆发送钮），收起后是一条标题。
  */
 export function LocalFileComposerCard(props: {
+  readonly sessionId?: string
+  readonly onClose?: () => void
+  readonly onDraftChange?: (text: string) => void
+  readonly onSent?: () => void
   readonly doc: LocalFileDoc
   readonly readers: MarkdownTurnReaders
   readonly t: RuntimeT
@@ -82,12 +86,13 @@ export function LocalFileComposerCard(props: {
   const [editing, setEditing] = useState(true)
   const [toast, setToast] = useState<{ seq: number; text: string } | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const [draft, setDraft] = useState(props.doc.text)
   const t = props.t
 
   const send = (toNew: boolean): void => {
-    const body = inputRef.current?.value ?? ''
+    const body = draft
     if (body.trim() === '') return
-    const sessionId = currentSessionIdFromDom()
+    const sessionId = props.sessionId ?? currentSessionIdFromDom()
     if (sessionId === undefined) return
     const header = t('markdownTurn.localFileHeader', { name: props.doc.name })
     const payload = `${header}\n\n${body}`
@@ -98,7 +103,7 @@ export function LocalFileComposerCard(props: {
     } else {
       sending = props.readers.sendToSession(sessionId, payload)
     }
-    void sending.catch(() => {
+    void sending.then(() => { props.onSent?.() }).catch(() => {
       setToast({ seq: (toast?.seq ?? 0) + 1, text: t(toNew ? 'markdownTurn.newSessionFailed' : 'markdownTurn.sendFailed') })
     })
     setEditing(false)
@@ -128,7 +133,7 @@ export function LocalFileComposerCard(props: {
               data-local-close=""
               aria-label={t('markdownTurn.cancel')}
               title={t('markdownTurn.cancel')}
-              onClick={() => setLocalFileDoc(null)}
+              onClick={() => props.onClose ? props.onClose() : setLocalFileDoc(null)}
             >
               <IconCloseOutlineRegular size={15} />
             </button>
@@ -137,12 +142,16 @@ export function LocalFileComposerCard(props: {
             ref={inputRef}
             className={css.editInput}
             data-local-file-text=""
-            defaultValue={props.doc.text}
+            value={draft}
+            onChange={e => { setDraft(e.target.value); props.onDraftChange?.(e.target.value) }}
             autoFocus
             aria-label={t('markdownTurn.edit')}
             style={{ minHeight: '28dvh' }}
           />
           <div className={css.editActions}>
+            <button type="button" className={css.iconButton} aria-label="复制全文" onClick={() => {
+              void navigator.clipboard.writeText(draft).then(() => setToast({ seq: Date.now(), text: '已复制' }), () => setToast({ seq: Date.now(), text: '复制失败' }))
+            }}>复制全文</button>
             <button
               type="button"
               className={css.editNewSession}
@@ -186,7 +195,7 @@ export function LocalFileComposerCard(props: {
             data-local-close=""
             aria-label={t('markdownTurn.cancel')}
             title={t('markdownTurn.cancel')}
-            onClick={() => setLocalFileDoc(null)}
+            onClick={() => props.onClose ? props.onClose() : setLocalFileDoc(null)}
           >
             <IconCloseOutlineRegular size={15} />
           </button>

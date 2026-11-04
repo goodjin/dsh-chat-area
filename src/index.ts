@@ -12,6 +12,7 @@
  * 接进本包的 `assistant-step` 包装（见 conversation-surfaces.tsx 的说明）。
  */
 
+import { registerConversationTools } from './conversation-tools.tsx'
 import { registerSessionIdBar } from './session-id-bar/index.js'
 import { startMermaidDiagrams } from './mermaid.ts'
 import { registerConversationSurfaces } from './conversation-surfaces.tsx'
@@ -57,6 +58,7 @@ function safeLogger(ctx: PluginContext): { info(message: string): void; warn(mes
 
 export function apply(ctx: PluginContext): void {
   const log = safeLogger(ctx)
+  registerConversationTools(ctx)
   try {
     // 注册会话 ID 条（需要 slots）
     const slotHost = ctx.slots as Parameters<typeof registerSessionIdBar>[0]

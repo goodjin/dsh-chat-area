@@ -12,3 +12,8 @@ import { vi } from 'vitest'
  * 不受这里影响；那条测试另在自己的 mock require 里给 primitives 喂哑值。
  */
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({}))
+vi.mock('react-dom', () => ({ createPortal: () => null }))
+vi.mock('@deepseek-ai/dsh-client-ui-sidebar-files', () => ({ apply: () => {}, inject: [] }))
+vi.mock('@deepseek-ai/dsh-client-ui-sidebar-browser', () => ({ apply: () => {}, inject: [] }))
+vi.mock('@deepseek-ai/dsh-client-ui-sidebar-terminal', () => ({ apply: () => {}, inject: [] }))
+vi.mock('@deepseek-ai/dsh-client-ui-sidebar-documentpreview', () => ({ apply: () => {}, inject: [] }))

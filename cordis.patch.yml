@@ -17,3 +17,8 @@
       name: '@goodjin2/dsh-chat-area'
     - id: threadharbor-mermaid-asset
       name: '@goodjin2/dsh-chat-area/mermaid-asset'
+
+# Conversation tools also offer the browser in web profiles (iframe fallback).
+- id: ui-sidebar-browser
+  name: '@deepseek-ai/dsh-client-ui-sidebar-browser'
+  disabled: false
