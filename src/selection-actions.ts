@@ -13,7 +13,7 @@
  * - 弹条自身内部的选区不弹。
  *
  * 「发送」复用 remote.session.prompt（队列模式，与文件阅读区的发送同一条
- * 通道）；「添加到会话」聚焦 composer 的 contenteditable 后走 insertText
+ * 通道）；「添加到会话」把光标塌缩到 composer 末尾后走 insertText 追加
  * 命令——Lexical 经 beforeinput 正确接住，草稿与未发送提示保持原生行为。
  */
 import { createMarkdownTurnReaders } from './markdown-turn-sources.ts'
@@ -123,17 +123,15 @@ function currentSessionIdFromDom(): string | undefined {
 }
 
 /**
- * 计算填充后的输入框全文：追加到已有草稿**末尾**，与旧内容之间隔
- * **三个空格**，并在最末尾补**一个空格**（方便用户接着往下输入）。
- * 草稿为空时直接填入选中内容加尾空格。
+ * 计算要**追加**到输入框末尾的文本：已有草稿时先隔**三个空格**再接选中
+ * 内容，最末尾补**一个空格**（方便用户接着往下输入）；草稿为空时直接填
+ * 选中内容加尾空格。
  * @param existing - 输入框里已有的草稿文本（contenteditable 的可见文本）。
  * @param text - 选中的文字。
- * @returns 应写入输入框的完整文本。
+ * @returns 应追加的文本。
  */
-export function composeFillText(existing: string, text: string): string {
-  // contenteditable 的空格可能以 nbsp 形式出现，先归一成普通空格再拼接。
-  const base = existing.replace(/\u00a0/g, ' ')
-  return base === '' ? `${text} ` : `${base}   ${text} `
+export function composeFillAppend(existing: string, text: string): string {
+  return existing === '' ? `${text} ` : `   ${text} `
 }
 
 /**
@@ -204,12 +202,18 @@ export function startSelectionActions(options: { readers: MarkdownTurnReaders; t
       return
     }
     composer.focus()
-    // 全选后整段替换：替换文本 = 已有草稿 + 三个空格 + 选中内容 + 尾空格
-    // （composeFillText 负责）。Lexical 绑在 contenteditable 的 beforeinput
-    // 上，selectAll + insertText 都会被它正确接住。
-    document.execCommand('selectAll')
+    // 把光标塌缩到 composer 内容的**末尾**，再走 insertText 追加。
+    // 不能用「全选 + 整段替换」：Lexical 维护自己的内容模型，DOM 层的
+    // 范围替换会被它的模型校验拒绝并回滚（草稿非空时表现为没生效）；
+    // 塌缩光标处的 insertText 则会被它的 beforeinput 正确接住。
+    const range = document.createRange()
+    range.selectNodeContents(composer)
+    range.collapse(false)
+    const selection = window.getSelection()
+    selection?.removeAllRanges()
+    selection?.addRange(range)
     const existing = composer.textContent ?? ''
-    const ok = document.execCommand('insertText', false, composeFillText(existing, text))
+    const ok = document.execCommand('insertText', false, composeFillAppend(existing, text))
     if (!ok) toast(options.t('selection.fillFailed'))
     clearSelection()
   })
