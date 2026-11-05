@@ -18,6 +18,7 @@ import {
   SELECTION_SHOW_DELAY_MS,
   selectionAllowed,
   selectionBarPosition,
+  selectionEditVisible,
 } from '../src/selection-actions.ts'
 
 /** 造一个最小 closest 面：命中集合里的选择器（按逗号拆开比对）返回占位元素，否则 null。 */
@@ -174,8 +175,8 @@ describe('选区编辑卡状态', () => {
   it('单选编辑：打开带文本，关闭后状态清空、不影响多选收藏', () => {
     clearMultiItems()
     addMultiItem('收藏段', { collapsed: false } as unknown as Range)
-    openSelectionEdit('选中文字', false)
-    expect(getSelectionEdit()).toMatchObject({ text: '选中文字', multi: false })
+    openSelectionEdit('选中文字', false, 'session-a')
+    expect(getSelectionEdit()).toMatchObject({ text: '选中文字', multi: false, sessionId: 'session-a' })
     closeSelectionEdit()
     expect(getSelectionEdit()).toBeNull()
     expect(getMultiItems().map(item => item.text)).toEqual(['收藏段'])
@@ -186,14 +187,41 @@ describe('选区编辑卡状态', () => {
     clearMultiItems()
     addMultiItem('第一段', { collapsed: false } as unknown as Range)
     addMultiItem('第二段', { collapsed: false } as unknown as Range)
-    openSelectionEdit(joinMultiTexts(getMultiItems()), true)
-    expect(getSelectionEdit()).toMatchObject({ multi: true })
+    openSelectionEdit(joinMultiTexts(getMultiItems()), true, 'session-a')
+    expect(getSelectionEdit()).toMatchObject({ multi: true, sessionId: 'session-a' })
     const seq = getSelectionEdit()?.seq
-    openSelectionEdit('再开一次', true)
+    openSelectionEdit('再开一次', true, 'session-a')
     // seq 自增：编辑卡以 seq 为 key 重挂载，回到初始文本。
     expect(getSelectionEdit()?.seq).toBe((seq ?? 0) + 1)
     closeSelectionEdit()
     expect(getSelectionEdit()).toBeNull()
     expect(getMultiItems()).toEqual([])
+  })
+})
+
+describe('编辑卡的会话作用域可见性', () => {
+  const state = (sessionId: string | undefined): ReturnType<typeof getSelectionEdit> => {
+    openSelectionEdit('文字', false, sessionId)
+    return getSelectionEdit()
+  }
+
+  it('关闭状态不渲染', () => {
+    expect(selectionEditVisible(null, 'session-a')).toBe(false)
+  })
+
+  it('state 无 sessionId（读不到会话时的旧口径）：放行渲染', () => {
+    expect(selectionEditVisible(state(undefined), 'session-a')).toBe(true)
+  })
+
+  it('激活会话 key 读不到：放行渲染（避免整卡消失）', () => {
+    expect(selectionEditVisible(state('session-a'), undefined)).toBe(true)
+  })
+
+  it('激活会话与打开时会话一致：渲染', () => {
+    expect(selectionEditVisible(state('session-a'), 'session-a')).toBe(true)
+  })
+
+  it('切换到别的会话：不渲染（否则每个打开过的会话都盖住输入框）', () => {
+    expect(selectionEditVisible(state('session-a'), 'session-b')).toBe(false)
   })
 })

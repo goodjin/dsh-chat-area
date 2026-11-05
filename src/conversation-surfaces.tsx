@@ -33,6 +33,7 @@ import type { MarkdownTurnReaders } from './markdown-turn-sources.ts'
 import { registerMarkdownTurn } from './markdown-turn.tsx'
 import { registerLocalFileComposer } from './local-file.tsx'
 import { registerSelectionEditComposer } from './selection-edit-card.tsx'
+import { sessionKeyAccessorsOf } from './selection-actions.ts'
 import { en, fallbackT, NAMESPACE, zh } from './locales.ts'
 import type { RuntimeT } from './locales.ts'
 
@@ -242,7 +243,14 @@ export function registerConversationSurfaces(ctx: Surface): void {
     registerLocalFileComposer(slots as unknown as Parameters<typeof registerLocalFileComposer>[0], readers, dshT)
 
     // 选区编辑卡：弹条「编辑」/ 多选浮动「编辑」钮打开（overlay 座位）。
-    registerSelectionEditComposer(slots as unknown as Parameters<typeof registerSelectionEditComposer>[0], readers, dshT)
+    // sessionKey 访问器让卡片只显示在打开时的那个会话视图里。
+    const sessionKey = sessionKeyAccessorsOf(ctx)
+    registerSelectionEditComposer(
+      slots as unknown as Parameters<typeof registerSelectionEditComposer>[0],
+      readers,
+      dshT,
+      sessionKey,
+    )
   } catch (error) {
     if (typeof console !== 'undefined') console.warn(`[threadharbor-chat-area] local file composer: registration failed — ${error instanceof Error ? error.message : String(error)}`)
   }

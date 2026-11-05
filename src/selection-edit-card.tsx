@@ -16,7 +16,7 @@
 import { useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
 import { IconCloseOutlineRegular, IconNewChatOutlineRegular, IconSendOutlineRegular, IconWarningOutlineRegular, Toast } from '@deepseek-ai/dsh-client-ui-primitives'
-import { closeSelectionEdit, currentSessionIdFromDom, getSelectionEdit, subscribeSelectionEdit } from './selection-actions.ts'
+import { closeSelectionEdit, currentSessionIdFromDom, getSelectionEdit, selectionEditVisible, subscribeSelectionEdit } from './selection-actions.ts'
 import type { SelectionEditState } from './selection-actions.ts'
 import type { MarkdownTurnReaders } from './markdown-turn-sources.ts'
 import type { RuntimeT } from './locales.ts'
@@ -38,28 +38,46 @@ function SelectionEditCard(props: {
   const coverRef = useRef<HTMLDivElement>(null)
   const t = props.t
 
-  // 覆盖层对位：跟随会话滚动容器的客户区；窗口尺寸变化时重算。
+  // 覆盖层对位：占满会话滚动区域，但**下边界不越过 composer**（composerSeat
+  // 在 scrollBody 内部，直接取 scroller 矩形会把输入框盖住）；composer 高度
+  // 变化（草稿增行）经 ResizeObserver 重新对位，窗口尺寸变化同样重算。
   useLayoutEffect(() => {
+    const cover = coverRef.current
+    if (cover === null) return
     const align = (): void => {
-      const cover = coverRef.current
-      if (cover === null) return
       const scroller = document.querySelector('[data-conversation-scroll]')
       if (scroller === null) return
       const rect = scroller.getBoundingClientRect()
-      cover.style.left = `${rect.left + COVER_PADDING}px`
-      cover.style.top = `${rect.top + COVER_PADDING}px`
+      const composerSeat = document.querySelector('[data-composer-seat]')
+      let bottom = rect.bottom
+      if (composerSeat !== null) bottom = Math.min(bottom, composerSeat.getBoundingClientRect().top - 8)
+      const top = rect.top + COVER_PADDING
+      const left = rect.left + COVER_PADDING
+      cover.style.left = `${left}px`
+      cover.style.top = `${top}px`
       cover.style.width = `${rect.width - COVER_PADDING * 2}px`
-      cover.style.height = `${rect.height - COVER_PADDING * 2}px`
+      // 高度保底 224px（10 行），上限不越 composer。
+      cover.style.height = `${Math.max(bottom - top, 224)}px`
     }
     align()
+    const composerSeat = document.querySelector('[data-composer-seat]')
+    let observer: ResizeObserver | undefined
+    if (composerSeat !== null) {
+      observer = new ResizeObserver(align)
+      observer.observe(composerSeat)
+    }
     window.addEventListener('resize', align)
-    return () => { window.removeEventListener('resize', align) }
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', align)
+    }
   }, [])
 
   const send = (toNew: boolean): void => {
     const body = inputRef.current?.value ?? ''
     if (body.trim() === '') return
-    const sessionId = currentSessionIdFromDom()
+    // 发往打开编辑卡时所在的会话（记录在 state.sessionId），DOM 读法兜底。
+    const sessionId = props.state.sessionId ?? currentSessionIdFromDom()
     if (sessionId === undefined) {
       setToast({ seq: (toast?.seq ?? 0) + 1, text: t('markdownTurn.sendFailed') })
       return
@@ -167,6 +185,10 @@ export function registerSelectionEditComposer(
   slots: OverlaySlotHost,
   readers: MarkdownTurnReaders,
   t: RuntimeT,
+  sessionKey?: {
+    getKey: () => string | undefined
+    subscribeKey: (listener: () => void) => () => void
+  },
 ): () => void {
   return slots.inject('conversation.input.overlay', () => slots.register(
     {
@@ -177,9 +199,14 @@ export function registerSelectionEditComposer(
     },
     () => {
       const state = useSyncExternalStore(subscribeSelectionEdit, getSelectionEdit, getSelectionEdit)
-      if (state === null) return null
+      // 会话作用域过滤：只在打开时的那个会话视图里渲染（key 读不到时放行）。
+      // sessionKey 由注册参数固定，无条件调 hook 保证渲染路径稳定。
+      const subscribe = sessionKey?.subscribeKey ?? (() => () => {})
+      const getKey = sessionKey?.getKey ?? (() => undefined)
+      const activeKey = useSyncExternalStore(subscribe, getKey, getKey)
+      if (!selectionEditVisible(state, activeKey)) return null
       // 以 seq 为 key：每次打开都重挂载，textarea 回到初始文本与焦点。
-      return <SelectionEditCard key={state.seq} state={state} readers={readers} t={t} />
+      return <SelectionEditCard key={state!.seq} state={state!} readers={readers} t={t} />
     },
   )) as () => void
 }

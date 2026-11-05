@@ -224,9 +224,10 @@ export function joinMultiTexts(items: readonly MultiItem[]): string {
   return items.map(item => item.text).join('\n\n')
 }
 
-/** 编辑卡状态：open 时的文本、是否来自多选收藏、以及重挂载用的 seq。 */
+/** 编辑卡状态：open 时的文本、所属会话、是否来自多选收藏、以及重挂载用的 seq。 */
 export interface SelectionEditState {
   readonly text: string
+  readonly sessionId: string | undefined
   readonly multi: boolean
   readonly seq: number
 }
@@ -247,12 +248,29 @@ export function getSelectionEdit(): SelectionEditState | null {
 }
 
 /**
- * 打开编辑卡。multi=true 表示内容来自多选收藏：关闭/发送后连同收藏与
- * 高亮一起清掉；单选编辑不影响收藏。
+ * 编辑卡是否该在当前视图渲染：状态存在，且（能读到激活会话时）只属于
+ * 打开时的那个会话——overlay 座位是会话作用域，不滤的话每个打开过的
+ * 会话都会渲染同一张卡、盖住各自的输入框。
+ * @param state - 编辑卡状态。
+ * @param activeKey - 当前激活会话的 key（读不到时放行，避免整卡消失）。
+ * @returns 当前视图是否应渲染编辑卡。
  */
-export function openSelectionEdit(text: string, multi: boolean): void {
+export function selectionEditVisible(state: SelectionEditState | null, activeKey: string | undefined): boolean {
+  if (state === null) return false
+  if (activeKey === undefined) return true
+  // 打开时读不到会话归属（sessionId undefined）：无法判定，放行渲染。
+  if (state.sessionId === undefined) return true
+  return state.sessionId === activeKey
+}
+
+/**
+ * 打开编辑卡。sessionId 记录打开时的激活会话：卡片只在该会话的视图里
+ * 显示（见 selectionEditVisible）。multi=true 表示内容来自多选收藏：
+ * 关闭/发送后连同收藏与高亮一起清掉；单选编辑不影响收藏。
+ */
+export function openSelectionEdit(text: string, multi: boolean, sessionId: string | undefined): void {
   editSeq += 1
-  editState = { text, multi, seq: editSeq }
+  editState = { text, sessionId, multi, seq: editSeq }
   for (const listener of editListeners) listener()
 }
 
@@ -265,11 +283,50 @@ export function closeSelectionEdit(): void {
 }
 
 /**
+ * 从宿主 uiSession 服务组装「当前激活会话 key」的读取/订阅器；
+ * 服务缺席时 getKey 落回 DOM 属性、订阅退化为空。
+ * @param ctx - 宿主上下文（任意持有 uiSession 服务的对象）。
+ * @returns getKey / subscribeKey 一对访问器。
+ */
+export function sessionKeyAccessorsOf(ctx: unknown): {
+  getKey: () => string | undefined
+  subscribeKey: (listener: () => void) => () => void
+} {
+  type UiSessionHolder = {
+    uiSession?: {
+      adapter?: {
+        current?: {
+          getSnapshot?: () => { key?: string }
+          subscribe?: (listener: () => void) => () => void
+        }
+      }
+    }
+  }
+  const holder = (): UiSessionHolder | undefined => ctx as UiSessionHolder | undefined
+  return {
+    getKey: () => {
+      const key = holder()?.uiSession?.adapter?.current?.getSnapshot?.()?.key
+      if (key !== undefined && key !== '') return key
+      return currentSessionIdFromDom()
+    },
+    subscribeKey: listener => {
+      const subscribe = holder()?.uiSession?.adapter?.current?.subscribe
+      return typeof subscribe === 'function' ? subscribe(listener) : () => {}
+    },
+  }
+}
+
+/**
  * 启动选区弹条：注入样式、挂监听、建弹条元素。
  * @param options - readers（发送口）与文案。
  * @returns 清理函数：摘掉监听并移除弹条元素。
  */
-export function startSelectionActions(options: { readers: MarkdownTurnReaders; t: RuntimeT }): () => void {
+export function startSelectionActions(options: {
+  readers: MarkdownTurnReaders
+  t: RuntimeT
+  /** 当前激活会话 key 的读取器；打开编辑卡时记录归属会话。 */
+  currentSessionKey?: () => string | undefined
+}): () => void {
   if (typeof document === 'undefined') return () => {}
   const style = document.createElement('style')
   style.dataset.plugin = 'threadharbor-chat-area'
@@ -326,7 +383,7 @@ export function startSelectionActions(options: { readers: MarkdownTurnReaders; t
   updateChip()
   const unsubscribeChip = subscribeMultiItems(updateChip)
   chip.addEventListener('click', () => {
-    openSelectionEdit(joinMultiTexts(getMultiItems()), true)
+    openSelectionEdit(joinMultiTexts(getMultiItems()), true, options.currentSessionKey?.())
   })
 
   let showTimer = 0
@@ -393,7 +450,7 @@ export function startSelectionActions(options: { readers: MarkdownTurnReaders; t
     const text = selectedText()
     if (text === '') { hide(); return }
     // 单选编辑：进编辑卡，不影响多选收藏。
-    openSelectionEdit(text, false)
+    openSelectionEdit(text, false, options.currentSessionKey?.())
     clearSelection()
   })
 
@@ -486,6 +543,14 @@ export function startSelectionActions(options: { readers: MarkdownTurnReaders; t
 export function startSelectionActionsFromRemote(
   remote: () => unknown,
   t: RuntimeT,
+  sessionKey?: {
+    getKey: () => string | undefined
+    subscribeKey: (listener: () => void) => () => void
+  },
 ): () => void {
-  return startSelectionActions({ readers: createMarkdownTurnReaders(remote), t })
+  return startSelectionActions({
+    readers: createMarkdownTurnReaders(remote),
+    t,
+    ...(sessionKey === undefined ? {} : { currentSessionKey: sessionKey.getKey }),
+  })
 }

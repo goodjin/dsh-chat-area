@@ -16,7 +16,7 @@ import { registerConversationTools } from './conversation-tools.tsx'
 import { registerSessionIdBar } from './session-id-bar/index.js'
 import { startMermaidDiagrams } from './mermaid.ts'
 import { injectTablePadCss } from './table-pad.ts'
-import { startSelectionActionsFromRemote } from './selection-actions.ts'
+import { startSelectionActionsFromRemote, sessionKeyAccessorsOf } from './selection-actions.ts'
 import { registerConversationSurfaces } from './conversation-surfaces.tsx'
 import { fallbackT } from './locales.ts'
 
@@ -81,7 +81,11 @@ export function apply(ctx: PluginContext): void {
   }
   try {
     // 会话区选区弹条：选中文字末尾弹「添加到会话 / 发送会话」。
-    const disposeSelection = startSelectionActionsFromRemote(() => ctx.get('remote'), fallbackT)
+    const disposeSelection = startSelectionActionsFromRemote(
+      () => ctx.get('remote'),
+      fallbackT,
+      sessionKeyAccessorsOf(ctx),
+    )
     ctx.effect(() => disposeSelection, 'threadharbor-chat-area: selection actions')
     log.info('selection actions: started')
   } catch (error: unknown) {
