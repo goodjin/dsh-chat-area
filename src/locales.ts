@@ -34,6 +34,8 @@ export type ChatPowerLocaleKey =
   | 'markdownTurn.copyFailed' | 'markdownTurn.filesAll' | 'markdownTurn.filesAllAria'
   | 'markdownTurn.filesCollapseAria' | 'markdownTurn.openFile'
   | 'markdownTurn.localFileHeader' | 'markdownTurn.localFileTooLarge'
+  | 'markdownTurn.copyAll'
+  | 'compose.sendCurrent' | 'compose.sendNewSession' | 'compose.copyHint'
   | 'selection.addToChat' | 'selection.sendToChat' | 'selection.fillFailed'
   | 'selection.edit' | 'selection.multiAdd' | 'selection.editCount'
   | 'selection.removeItem'
@@ -95,6 +97,10 @@ export const zh: Record<ChatPowerLocaleKey, string> = {
   'markdownTurn.openFile': '打开本机文件',
   'markdownTurn.localFileHeader': '以下为本机文件 {name} 的内容：',
   'markdownTurn.localFileTooLarge': '文件超过 5 MB，没有打开',
+  'markdownTurn.copyAll': '复制全文',
+  'compose.sendCurrent': '发送到当前会话',
+  'compose.sendNewSession': '新建会话并发送',
+  'compose.copyHint': '这里编辑的是发送副本，原文件不会被改动',
   'selection.addToChat': '添加到会话',
   'selection.sendToChat': '发送会话',
   'selection.fillFailed': '没有找到输入框',
@@ -163,6 +169,10 @@ export const en: Record<ChatPowerLocaleKey, string> = {
   'markdownTurn.openFile': 'Open a local file',
   'markdownTurn.localFileHeader': 'Below is the content of local file {name}:',
   'markdownTurn.localFileTooLarge': 'The file exceeds 5 MB and was not opened',
+  'markdownTurn.copyAll': 'Copy all',
+  'compose.sendCurrent': 'Send to current conversation',
+  'compose.sendNewSession': 'New session and send',
+  'compose.copyHint': 'You are editing a copy to send; the original stays unchanged.',
   'selection.addToChat': 'Add to chat',
   'selection.sendToChat': 'Send to chat',
   'selection.fillFailed': 'Composer not found',

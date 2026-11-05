@@ -16,6 +16,7 @@ import { registerConversationTools } from './conversation-tools.tsx'
 import { registerSessionIdBar } from './session-id-bar/index.js'
 import { startMermaidDiagrams } from './mermaid.ts'
 import { injectTablePadCss } from './table-pad.ts'
+import { injectUiThemeCss } from './ui-theme.ts'
 import { startSelectionActionsFromRemote, sessionKeyAccessorsOf } from './selection-actions.ts'
 import { registerConversationSurfaces } from './conversation-surfaces.tsx'
 import { fallbackT } from './locales.ts'
@@ -65,6 +66,13 @@ function safeLogger(ctx: PluginContext): { info(message: string): void; warn(mes
 
 export function apply(ctx: PluginContext): void {
   const log = safeLogger(ctx)
+  try {
+    // 会话区统一 UI 主题（按钮 / 面板 / 状态样式的一处注入）。最先注入，
+    // 后续各表面注册后立即能取到同一套类名；失败只损失统一观感，不拖累功能。
+    injectUiThemeCss()
+  } catch (error: unknown) {
+    log.warn(`ui theme: inject failed — ${error instanceof Error ? error.message : String(error)}`)
+  }
   try {
     // 会话区工具（标签条、文件树控件、本机文件卡）。整块失败只损失工具区，
     // 不能让整条 entry 变 failed——启动审计一旦判失败，整页都打不开。
