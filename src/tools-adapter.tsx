@@ -97,7 +97,7 @@ export function createToolsAdapter(ctx: any) {
       if (key === 'locale') return new Proxy(target.locale, { get(locale, prop) { return prop === 'register' ? () => () => {} : typeof locale[prop] === 'function' ? locale[prop].bind(locale) : locale[prop] } })
       if (key === 'shortcuts') return new Proxy(target.shortcuts, { get(shortcuts, prop) { return prop === 'register' ? () => () => {} : shortcuts[prop] } })
       if (key === 'webTerminals') return new Proxy(target.webTerminals, { get(terminals, prop) {
-        if (prop === 'retainTabs') return (tabs: any[]) => terminals.retainTabs([...hostSidebar.openTabs.getSnapshot().filter((t: any) => t.kind === 'terminal'), ...tabs])
+        if (prop === 'retainTabs') return (tabs: any[]) => terminals.retainTabs([...(hostSidebar?.openTabs?.getSnapshot?.() ?? []).filter((t: any) => t.kind === 'terminal'), ...tabs])
         const value = terminals[prop]; return typeof value === 'function' ? value.bind(terminals) : value
       } })
       if (key === 'inject') return (names: string[], callback: any) => target.inject(names.filter(name => !privateServices.has(name)), (child: any) => callback(facade(child)))
@@ -110,8 +110,12 @@ export function createToolsAdapter(ctx: any) {
     const privateCtx = facade(ctx)
     for (const feature of features) privateCtx.inject(feature.inject, (scope: any) => feature.apply(scope))
     ctx.effect(() => {
-      const sync = () => ctx.get('webTerminals')?.retainTabs([...hostSidebar.openTabs.getSnapshot().filter((t: any) => t.kind === 'terminal'), ...toolsState.inventory().filter(t => t.kind === 'terminal')])
-      const off = hostSidebar.openTabs.subscribe(sync)
+      // sidebarRight 已经写进 inject，正常路径下一定在；这里仍判空，是因为工具区
+      // 不该因为宿主少一个服务就整块起不来（失败了就只是不接管终端标签）。
+      const openTabs = hostSidebar?.openTabs
+      if (openTabs === undefined || typeof openTabs.subscribe !== 'function') return
+      const sync = () => ctx.get('webTerminals')?.retainTabs([...openTabs.getSnapshot().filter((t: any) => t.kind === 'terminal'), ...toolsState.inventory().filter(t => t.kind === 'terminal')])
+      const off = openTabs.subscribe(sync)
       return () => { off(); toolsState.dispose(); sync() }
     }, 'chat-area: independent tools lifetime')
   }

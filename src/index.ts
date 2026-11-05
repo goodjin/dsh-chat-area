@@ -25,9 +25,14 @@ export const name = 'threadharbor-chat-area'
 
 /**
  * 依赖：插槽表、locale 注册中心（文案）、remote 服务（文件阅读区读 workspaceFiles /
- * session）。缺任一，对应功能安静退回，不拖累其它。
+ * session），以及右侧栏的 `sidebarRight`（工具标签的宿主服务）。缺任一，对应功能
+ * 安静退回，不拖累其它。
+ *
+ * `sidebarRight` 必须声明：工具适配器在 apply 里就要读它的 openTabs 订阅；
+ * 不声明的话会抢在它注册之前启动，拿到 undefined 直接抛错（2026-11-05 现场：
+ * 桌面版启动时把整条 entry 弄成 failed）。
  */
-export const inject = ['slots', 'locale', 'remote', 'remote.session', 'remote.workspaceFiles'] as const
+export const inject = ['slots', 'locale', 'remote', 'remote.session', 'remote.workspaceFiles', 'sidebarRight'] as const
 
 export interface PluginContext {
   logger(name: string): { info(message: string): void; warn(message: string): void }
@@ -60,7 +65,13 @@ function safeLogger(ctx: PluginContext): { info(message: string): void; warn(mes
 
 export function apply(ctx: PluginContext): void {
   const log = safeLogger(ctx)
-  registerConversationTools(ctx)
+  try {
+    // 会话区工具（标签条、文件树控件、本机文件卡）。整块失败只损失工具区，
+    // 不能让整条 entry 变 failed——启动审计一旦判失败，整页都打不开。
+    registerConversationTools(ctx)
+  } catch (error: unknown) {
+    log.warn(`conversation tools: registration failed — ${error instanceof Error ? error.message : String(error)}`)
+  }
   try {
     // 宽表格末列右边距：官方样式清零了末列右 padding，宽表滚到最右时
     // 末格文字贴边；注入一条覆盖（只作用 md-table-wide 的滚动容器）。
