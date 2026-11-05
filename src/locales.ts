@@ -16,9 +16,11 @@ export const NAMESPACE = 'chatPower'
 
 export type ChatPowerLocaleKey =
   | 'mermaid.label' | 'mermaid.diagram' | 'mermaid.source' | 'mermaid.toggleNamed'
+  | 'mermaid.loading' | 'mermaid.renderFailed' | 'mermaid.retry'
   | 'answerCard.copy' | 'answerCard.copied' | 'answerCard.edit'
   | 'answerCard.title' | 'answerCard.editAnswer'
   | 'panel.sessionBar.copy' | 'panel.sessionBar.copied' | 'panel.sessionBar.copyFailed'
+  | 'panel.sessionBar.copyUnavailable'
   | 'markdownTurn.loading' | 'markdownTurn.error' | 'markdownTurn.retry'
   | 'markdownTurn.truncated' | 'markdownTurn.collapse' | 'markdownTurn.expand'
   | 'markdownTurn.collapseAria' | 'markdownTurn.expandAria'
@@ -52,6 +54,9 @@ export const zh: Record<ChatPowerLocaleKey, string> = {
   'mermaid.diagram': '图表',
   'mermaid.source': '源码',
   'mermaid.toggleNamed': '切换 Mermaid 图与源码',
+  'mermaid.loading': '正在加载图表…',
+  'mermaid.renderFailed': '图表未能渲染',
+  'mermaid.retry': '重试',
   'answerCard.copy': '复制结果',
   'answerCard.copied': '已复制',
   'answerCard.edit': '编辑',
@@ -60,6 +65,7 @@ export const zh: Record<ChatPowerLocaleKey, string> = {
   'panel.sessionBar.copy': '复制',
   'panel.sessionBar.copied': '已复制',
   'panel.sessionBar.copyFailed': '复制失败：',
+  'panel.sessionBar.copyUnavailable': '当前环境无法复制，请手动选择复制',
   'markdownTurn.loading': '正在读取文档…',
   'markdownTurn.error': '文档没有读出来',
   'markdownTurn.retry': '重试',
@@ -139,6 +145,9 @@ export const en: Record<ChatPowerLocaleKey, string> = {
   'mermaid.diagram': 'Diagram',
   'mermaid.source': 'Source',
   'mermaid.toggleNamed': 'Switch between the Mermaid diagram and its source',
+  'mermaid.loading': 'Loading the diagram…',
+  'mermaid.renderFailed': 'The diagram did not render',
+  'mermaid.retry': 'Retry',
   'answerCard.copy': 'Copy result',
   'answerCard.copied': 'Copied',
   'answerCard.edit': 'Edit',
@@ -147,6 +156,7 @@ export const en: Record<ChatPowerLocaleKey, string> = {
   'panel.sessionBar.copy': 'Copy',
   'panel.sessionBar.copied': 'Copied',
   'panel.sessionBar.copyFailed': 'Copy failed: ',
+  'panel.sessionBar.copyUnavailable': 'Clipboard unavailable here; select the text to copy manually',
   'markdownTurn.loading': 'Reading the document…',
   'markdownTurn.error': 'The document did not load',
   'markdownTurn.retry': 'Retry',

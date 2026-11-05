@@ -11,6 +11,9 @@ type BarProps = {
   readonly t?: RuntimeT
 }
 
+/** 复制反馈状态：空闲 / 已复制 / 失败（带原因）。 */
+type CopyState = 'idle' | 'copied' | { failed: string }
+
 type UtilitiesSlotHost = {
   inject(key: string, callback: () => unknown): unknown
   register(options: {
@@ -41,30 +44,63 @@ export function shortId(sessionId: string): string {
   return sessionId.replace(/^session-/, '').slice(0, 8)
 }
 
+/** 剪贴板的最小面（便于测试注入）。 */
+export interface ClipboardFace {
+  writeText(text: string): Promise<void>
+}
+
+/** 复制结果：copied / unavailable（无剪贴板）/ { failed: 原因 }。 */
+export type CopyOutcome = 'copied' | 'unavailable' | { failed: string }
+
+/**
+ * 统一复制入口：总是写**完整**会话 ID；缺失与拒绝都返回可提示的结果，
+ * 绝不抛错（此前 `navigator.clipboard?.writeText(...)` 在剪贴板缺失时直接
+ * TypeError，界面毫无反馈）。
+ */
+export async function copyViaClipboard(clipboard: ClipboardFace | undefined, sessionId: string): Promise<CopyOutcome> {
+  if (clipboard === undefined || typeof clipboard.writeText !== 'function') return 'unavailable'
+  try {
+    await clipboard.writeText(sessionId)
+    return 'copied'
+  } catch (error: unknown) {
+    return { failed: error instanceof Error ? error.message : String(error) }
+  }
+}
+
 export function SessionIdBar({ sessionId, t = fallbackT }: BarProps) {
-  const [state, setState] = useState<'idle' | 'copied' | { failed: string }>('idle')
+  const [state, setState] = useState<CopyState>('idle')
   const timer = useRef<number | undefined>(undefined)
 
   useEffect(() => () => { if (timer.current !== undefined) window.clearTimeout(timer.current) }, [])
 
+  // 换会话复位反馈：上一会话的成功勾号不能带进新会话。
+  useEffect(() => { setState('idle') }, [sessionId])
+
   const copy = (): void => {
-    navigator.clipboard?.writeText(sessionId).then(() => {
-      setState('copied')
-      timer.current = window.setTimeout(() => { setState('idle') }, 2000)
-    }, (error: unknown) => {
-      setState({ failed: error instanceof Error ? error.message : String(error) })
+    if (timer.current !== undefined) { window.clearTimeout(timer.current); timer.current = undefined }
+    void copyViaClipboard(navigator.clipboard, sessionId).then(outcome => {
+      if (outcome === 'copied') {
+        setState('copied')
+        timer.current = window.setTimeout(() => { setState('idle') }, 2000)
+        return
+      }
+      if (outcome === 'unavailable') {
+        setState({ failed: textOf(t, 'panel.sessionBar.copyUnavailable') })
+        return
+      }
+      setState({ failed: `${textOf(t, 'panel.sessionBar.copyFailed')}${outcome.failed}` })
     })
   }
 
   return createElement('div', {
     'data-session-id-bar': true,
+    className: css.bar,
     title: sessionId,
-    style: { display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', opacity: 0.75 },
   },
-    createElement('code', { style: { fontVariantNumeric: 'tabular-nums' } }, shortId(sessionId)),
+    createElement('code', { className: css.id }, shortId(sessionId)),
     createElement(Tooltip, {
       portal: true,
-      label: t('panel.sessionBar.copy'),
+      label: textOf(t, 'panel.sessionBar.copy'),
       side: 'bottom',
       delayMs: 500,
       children: createElement('button', {
@@ -72,23 +108,19 @@ export function SessionIdBar({ sessionId, t = fallbackT }: BarProps) {
         className: css.copyBtn,
         'data-action': 'copy-session-id',
         onClick: copy,
-        'aria-label': t('panel.sessionBar.copy'),
+        'aria-label': textOf(t, 'panel.sessionBar.copy'),
+        title: textOf(t, 'panel.sessionBar.copy'),
         'data-copied': state === 'copied' || undefined,
       },
         state === 'copied'
-          ? createElement(IconCheckOutlineRegular, { size: 14 })
-          : createElement(IconCopyOutlineRegular, { size: 14 }),
+          ? createElement(IconCheckOutlineRegular, { size: 16 })
+          : createElement(IconCopyOutlineRegular, { size: 16 }),
       ),
     }),
     state === 'idle' ? null : createElement(Toast, {
       key: state === 'copied' ? 'copied' : state.failed,
-      text: state === 'copied'
-        ? t('panel.sessionBar.copied')
-
-          : `${t('panel.sessionBar.copyFailed')}${state.failed}`,
-      icon: state === 'copied'
-        ? createElement(state === 'copied' ? IconCheckOutlineRegular : IconWarningOutlineRegular)
-        : createElement(IconWarningOutlineRegular),
+      text: state === 'copied' ? textOf(t, 'panel.sessionBar.copied') : state.failed,
+      icon: state === 'copied' ? createElement(IconCheckOutlineRegular) : createElement(IconWarningOutlineRegular),
       onDone: () => { setState('idle') },
     }),
   )

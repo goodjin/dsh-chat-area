@@ -203,6 +203,37 @@ describe('文件卡片与选区统一', () => {
   })
 })
 
+describe('余面统一：Mermaid、短 ID、宽表', () => {
+  const read = (relative: string): string => readFileSync(new URL(relative, import.meta.url), 'utf8')
+
+  it('Mermaid 状态可见：加载中、失败原因与重试都有界面入口', () => {
+    const source = read('../src/mermaid.ts')
+    expect(source).toContain('data-th-mermaid-status')
+    expect(source).toContain('data-th-mermaid-error')
+    expect(source).toContain('data-th-mermaid-retry')
+    const locale = read('../src/locales.ts')
+    expect(locale).toContain("'mermaid.renderFailed'")
+    expect(locale).toContain("'mermaid.loading'")
+  })
+
+  it('复制按钮 32px 点击区、16px 图标；整条不再整体降透明度；换会话复位状态', () => {
+    const css = read('../src/session-id-bar/session-id-bar.module.css')
+    expect(css).toMatch(/width:\s*32px/)
+    expect(css).not.toContain('opacity')
+    const source = read('../src/session-id-bar/index.ts')
+    expect(source).toMatch(/\[sessionId\]/)
+    expect(source).toContain('copyViaClipboard')
+    const locale = read('../src/locales.ts')
+    expect(locale).toContain("'panel.sessionBar.copyUnavailable'")
+  })
+
+  it('宽表末列边距同时覆盖表头与单元格，选择器仍锚定 md-table-wide', () => {
+    const source = read('../src/table-pad.ts')
+    expect(source).toContain('md-table-wide td:last-child')
+    expect(source).toContain('th:last-child')
+  })
+})
+
 describe('统一发送控制器', () => {
   it('空白文本直接拒绝：不发起请求、不进入 pending、不回调', async () => {
     const sent: string[] = []

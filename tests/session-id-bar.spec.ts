@@ -12,7 +12,7 @@
 
 import { describe, expect, it } from 'vitest'
 import type { ReactElement } from 'react'
-import { PANEL_ID, SessionIdBar, registerSessionIdBar, shortId, textOf } from '../src/session-id-bar/index.ts'
+import { PANEL_ID, SessionIdBar, copyViaClipboard, registerSessionIdBar, shortId, textOf } from '../src/session-id-bar/index.ts'
 import { NAMESPACE } from '../src/locales.ts'
 
 /** 会话头部工具行这个插槽名（DSH 的 ui-conversation 声明，会话作用域）。 */
@@ -109,5 +109,21 @@ describe('词条解析：框架 t 解不出来时不画键名', () => {
   it('t 能给出译文时用译文', () => {
     const known = (key: string): string => (key === 'panel.sessionBar.copy' ? 'Copy' : key)
     expect(textOf(known, 'panel.sessionBar.copy')).toBe('Copy')
+  })
+})
+
+describe('复制链路（统一发送链路的复制侧）', () => {
+  it('剪贴板可用：写入完整 ID，返回 copied', async () => {
+    const writes: string[] = []
+    const result = await copyViaClipboard({ writeText: async (text: string) => { writes.push(text) } }, 'session-abc')
+    expect(result).toBe('copied')
+    expect(writes).toEqual(['session-abc'])
+  })
+  it('剪贴板拒绝：返回失败与原因，组件据此提示', async () => {
+    const result = await copyViaClipboard({ writeText: async () => { throw new Error('denied') } }, 'session-abc')
+    expect(result).toEqual({ failed: 'denied' })
+  })
+  it('剪贴板缺失：返回 unavailable，而不是抛 TypeError', async () => {
+    await expect(copyViaClipboard(undefined, 'session-abc')).resolves.toBe('unavailable')
   })
 })

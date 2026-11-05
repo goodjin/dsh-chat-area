@@ -1,28 +1,49 @@
 /**
  * 会话 ID 条的样式。
  *
- * 复制按钮做成 24px 的图标按钮：常态透明底，hover 才铺一层极淡的底色，和答案
- * 卡片 / 文件阅读区那套图标按钮一致。复制成功后短暂变绿。早先这里直接写死
- * 「复制」文字，和周围的工具行图标风格不搭。
+ * 短 ID 是辅助信息：辅助文字色 + 等宽数字，不加胶囊底色。复制按钮是 32px
+ * 点击区的图标按钮（16px 图标），常态透明底、hover 铺淡底、成功短暂变绿，
+ * 与全插件统一的图标按钮规格一致。整条不再整体降透明度——辅助感由文字色
+ * 表达，焦点与成功状态不跟着变淡。
  */
+
+.bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary, inherit);
+}
+
+.id {
+  font-family: var(--dsw-font-family-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-variant-numeric: tabular-nums;
+  color: var(--dsw-alias-label-secondary, inherit);
+}
 
 .copyBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   background: transparent;
-  color: inherit;
+  color: var(--dsw-alias-label-secondary, inherit);
   cursor: pointer;
 }
 
 .copyBtn:hover {
   background: var(--dsw-alias-bg-hover, rgba(127, 127, 127, 0.12));
+  color: var(--dsw-alias-label-primary, inherit);
+}
+
+.copyBtn:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary, var(--dsw-alias-brand-primary, currentColor));
+  outline-offset: 1px;
 }
 
 .copyBtn[data-copied] {

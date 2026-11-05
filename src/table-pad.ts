@@ -12,9 +12,10 @@
  *
  * 选择器用 `[class*="tableScroll"]` 而不是编译后的哈希类名——CSS module
  * 的哈希随构建变化，子串匹配对哈希稳定；`md-table-wide` 是渲染器写在
- * 同一元素上的原样类，直接可用。
+ * 同一元素上的原样类，直接可用。表头（th）与单元格（td）一起补：只有 td
+ * 补边距时，表头末列文字与下方的单元格错位。
  */
-const TABLE_PAD_CSS = '[class*="tableScroll"].md-table-wide td:last-child{padding-right:16px}'
+const TABLE_PAD_CSS = '[class*="tableScroll"].md-table-wide td:last-child,[class*="tableScroll"].md-table-wide th:last-child{padding-right:16px}'
 
 /** 本条注入在 head 里的标记，重复注入与诊断都靠它。 */
 export const TABLE_PAD_TAG = 'dsh-chat-power/table-pad'

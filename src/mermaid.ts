@@ -62,6 +62,10 @@ const CANVAS_ATTR = 'data-th-mermaid-canvas'
 const TOGGLE_ATTR = 'data-th-mermaid-toggle'
 const ACTIVE_ATTR = 'data-th-mermaid-active'
 const VIEW_ATTR = 'data-th-mermaid-view'
+const STATUS_ATTR = 'data-th-mermaid-status'
+const ERROR_ATTR = 'data-th-mermaid-error'
+const ERROR_TEXT_ATTR = 'data-th-mermaid-error-text'
+const RETRY_ATTR = 'data-th-mermaid-retry'
 
 const DEFAULT_SCAN_DELAY_MS = 150
 const DEFAULT_SETTLE_MS = 350
@@ -70,7 +74,7 @@ const CACHE_LIMIT = 64
 
 const STYLE_CSS = `
 [${PREVIEW_ATTR}] {
-  border-top: 1px solid rgba(128, 128, 128, 0.28);
+  border-top: 1px solid var(--dsw-alias-border-l1, rgba(128, 128, 128, 0.28));
   padding: 6px 10px 8px;
 }
 [${PREVIEW_ATTR}] [data-th-mermaid-head] {
@@ -85,19 +89,55 @@ const STYLE_CSS = `
   font-weight: 600;
   letter-spacing: 0.02em;
 }
+[${PREVIEW_ATTR}] [data-th-mermaid-status] {
+  overflow: hidden;
+  color: var(--dsw-alias-label-secondary, inherit);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 [${PREVIEW_ATTR}] [${TOGGLE_ATTR}] {
   margin-left: auto;
-  padding: 1px 8px;
-  border: 1px solid currentColor;
+  flex: none;
+  padding: 2px 10px;
+  border: 1px solid var(--dsw-alias-border-l4, rgba(127, 127, 127, 0.25));
   border-radius: 6px;
   background: transparent;
   color: inherit;
   font: inherit;
+  font-size: 12px;
+  line-height: 18px;
   cursor: pointer;
-  opacity: 0.8;
 }
 [${PREVIEW_ATTR}] [${TOGGLE_ATTR}]:hover {
-  opacity: 1;
+  background: var(--dsw-alias-bg-hover, rgba(127, 127, 127, 0.12));
+}
+[${PREVIEW_ATTR}] [data-th-mermaid-error] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0 0;
+  font-size: 12px;
+  color: var(--dsw-alias-state-error-primary, var(--dsw-alias-label-primary, inherit));
+}
+[${PREVIEW_ATTR}] [data-th-mermaid-error-text] {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[${PREVIEW_ATTR}] [data-th-mermaid-retry] {
+  flex: none;
+  padding: 2px 10px;
+  border: 1px solid var(--dsw-alias-border-l4, rgba(127, 127, 127, 0.25));
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+}
+[${PREVIEW_ATTR}] [data-th-mermaid-retry]:hover {
+  background: var(--dsw-alias-bg-hover, rgba(127, 127, 127, 0.12));
 }
 [${PREVIEW_ATTR}] [${CANVAS_ATTR}] {
   display: none;
@@ -349,14 +389,15 @@ export function startMermaidDiagrams(deps: MermaidDiagramsDeps = {}): MermaidDia
   }
 
   /** 取（或补上）预览节点；head 里不放 `<pre>`，上游复制按钮读的是源码那份。 */
-  const ensurePreview = (block: HTMLElement, state: BlockState): { canvas: Element; button: Element } => {
+  const ensurePreview = (block: HTMLElement, state: BlockState): { canvas: Element; button: Element; status: HTMLElement } => {
     if (state.preview !== undefined) {
       if (!state.preview.isConnected) {
         state.preview = undefined
       } else {
         const canvas = state.preview.querySelector(`[${CANVAS_ATTR}]`)
         const button = state.preview.querySelector(`[${TOGGLE_ATTR}]`)
-        if (canvas !== null && button !== null) return { canvas, button }
+        const status = state.preview.querySelector(`[${STATUS_ATTR}]`) as HTMLElement | null
+        if (canvas !== null && button !== null && status !== null) return { canvas, button, status }
         state.preview.remove()
         state.preview = undefined
       }
@@ -370,6 +411,10 @@ export function startMermaidDiagrams(deps: MermaidDiagramsDeps = {}): MermaidDia
     const label = doc.createElement('span')
     label.setAttribute('data-th-mermaid-label', '')
     label.textContent = say('mermaid.label')
+    // 加载中提示（懒加载运行时 / 等待流式稳定），默认空、隐藏。
+    const status = doc.createElement('span')
+    status.setAttribute(STATUS_ATTR, '')
+    status.hidden = true
     const button = doc.createElement('button')
     button.type = 'button'
     button.setAttribute(TOGGLE_ATTR, '')
@@ -378,13 +423,61 @@ export function startMermaidDiagrams(deps: MermaidDiagramsDeps = {}): MermaidDia
       event.stopPropagation()
       setView(block, state, state.view === 'diagram' ? 'source' : 'diagram')
     })
-    head.append(label, button)
+    head.append(label, status, button)
     const canvas = doc.createElement('div')
     canvas.setAttribute(CANVAS_ATTR, '')
     preview.append(head, canvas)
     block.appendChild(preview)
     state.preview = preview
-    return { canvas, button }
+    return { canvas, button, status }
+  }
+
+  /** 头部加载状态；空串隐藏。 */
+  const setStatus = (block: HTMLElement, state: BlockState, text: string): void => {
+    const { status } = ensurePreview(block, state)
+    status.textContent = text
+    status.hidden = text === ''
+  }
+
+  /** 渲染失败就地可见：保留源码，显示原因与「重试」；不再只写日志。 */
+  const showBlockError = (block: HTMLElement, state: BlockState, detail: string): void => {
+    ensurePreview(block, state)
+    const preview = state.preview
+    if (preview === undefined) return
+    // 回到源码视图：失败后用户看得到、复制得到源码。
+    state.svg = undefined
+    state.view = 'source'
+    block.setAttribute(VIEW_ATTR, 'source')
+    const button = preview.querySelector(`[${TOGGLE_ATTR}]`)
+    if (button !== null) {
+      button.textContent = say('mermaid.diagram')
+      button.setAttribute('aria-pressed', 'false')
+    }
+    let errorRow = preview.querySelector(`[${ERROR_ATTR}]`) as HTMLElement | null
+    if (errorRow === null) {
+      errorRow = doc.createElement('div')
+      errorRow.setAttribute(ERROR_ATTR, '')
+      const text = doc.createElement('span')
+      text.setAttribute(ERROR_TEXT_ATTR, '')
+      const retry = doc.createElement('button')
+      retry.type = 'button'
+      retry.setAttribute(RETRY_ATTR, '')
+      retry.addEventListener('click', event => {
+        event.preventDefault()
+        event.stopPropagation()
+        errorRow?.remove()
+        setStatus(block, state, say('mermaid.loading'))
+        state.attempted = undefined
+        scheduleRender(state, block)
+      })
+      errorRow.append(text, retry)
+      preview.append(errorRow)
+    }
+    const errorText = errorRow.querySelector(`[${ERROR_TEXT_ATTR}]`)
+    if (errorText !== null) errorText.textContent = detail
+    const retryButton = errorRow.querySelector(`[${RETRY_ATTR}]`)
+    if (retryButton !== null) retryButton.textContent = say('mermaid.retry')
+    setStatus(block, state, '')
   }
 
   const applySvg = (block: HTMLElement, state: BlockState, view: 'diagram' | 'source', svg: string): void => {
@@ -393,6 +486,8 @@ export function startMermaidDiagrams(deps: MermaidDiagramsDeps = {}): MermaidDia
     // 用法就是把它挂进页面；这里不再过一道会拆坏图形的过滤器。
     canvas.innerHTML = svg
     state.svg = svg
+    state.preview?.querySelector(`[${ERROR_ATTR}]`)?.remove()
+    setStatus(block, state, '')
     block.setAttribute(ACTIVE_ATTR, '')
     setView(block, state, view)
   }
@@ -429,8 +524,12 @@ export function startMermaidDiagrams(deps: MermaidDiagramsDeps = {}): MermaidDia
     }
     let runtime: MermaidApi
     try {
+      // 首次遇到图时才注入 3.5 MB 的运行时——等待期间头部显示加载提示。
+      setStatus(block, state, say('mermaid.loading'))
       runtime = await api()
+      setStatus(block, state, '')
     } catch (error) {
+      showBlockError(block, state, `${say('mermaid.renderFailed')}：${messageOf(error)}`)
       report(`mermaid: runtime unavailable (${messageOf(error)}); diagrams stay as code`)
       return
     }
@@ -446,7 +545,8 @@ export function startMermaidDiagrams(deps: MermaidDiagramsDeps = {}): MermaidDia
       applySvg(block, state, state.view, result.svg)
       observer.takeRecords()
     } catch (error) {
-      clearPreview(block, state)
+      // 失败不再静默：就地显示「图表未能渲染 · 原因 · 重试」，源码保持可读可复制。
+      showBlockError(block, state, `${say('mermaid.renderFailed')}：${messageOf(error)}`)
       report(`mermaid: a diagram did not render (${messageOf(error)}); it stays as code`)
     }
   }
