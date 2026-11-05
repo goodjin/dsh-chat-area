@@ -1,9 +1,14 @@
 /**
- * 会话区选区弹条：选中一段文本后，在选中末尾弹出两个按钮——
- * 「添加到会话」（填进输入框草稿）与「发送会话」（直接作为新请求发出）。
+ * 会话区选区弹条：选中一段文本后，在选中末尾弹出四个按钮——
+ * 「添加到会话」（填进输入框草稿）、「发送会话」（直接作为新请求发出）、
+ * 「编辑」（把选中内容展开成会话区的编辑卡）与「多选」（把选中内容加入
+ * 多选收藏，保持高亮；收集后浮动「编辑」钮可整体进编辑卡，按原顺序、
+ * 项间空行拼接）。
  *
  * 纯 DOM 实现（同 mermaid.ts 的注入路数），不经 React：弹条的生命周期
  * 挂在 document 的 selectionchange / mousedown / scroll / keydown 上。
+ * 编辑卡本体在 selection-edit-card.tsx（React，挂 overlay 座位），两边经
+ * 本文件的 store 连接。
  *
  * 范围与排除：
  * - 只在会话滚动容器（`[data-conversation-scroll]`）里生效；
@@ -49,6 +54,16 @@ const BAR_CSS = [
   // 两个按钮之间的细分隔线。
   '.dshca-selbar .dshca-divider{width:1px;height:16px;flex:none;background:rgb(0 0 0 / 10%)}',
   '@media (prefers-color-scheme:dark){.dshca-selbar .dshca-divider{background:rgb(255 255 255 / 12%)}}',
+  // 多选高亮：CSS Custom Highlight API（Chromium），不动宿主 DOM；缺席时
+  // 只收藏文本、不做视觉标记。
+  `::highlight(dshca-multi){background-color:rgb(59 130 246 / 32%)}`,
+  // 多选收集后的浮动「编辑」钮（右下角，会话工具入口上方）。
+  '.dshca-chip{position:fixed;right:24px;bottom:132px;z-index:60;display:flex;align-items:center;gap:6px;',
+  'padding:6px 14px;border-radius:10px;background:#fff;border:1px solid rgb(0 0 0 / 8%);',
+  'box-shadow:0 4px 16px rgb(0 0 0 / 16%);color:rgb(0 0 0 / 78%);font:inherit;font-size:12.5px;cursor:pointer}',
+  '.dshca-chip:hover{background:rgb(0 0 0 / 4%)}',
+  '@media (prefers-color-scheme:dark){.dshca-chip{background:#2b2b30;border-color:rgb(255 255 255 / 10%);',
+  'box-shadow:0 4px 16px rgb(0 0 0 / 45%);color:rgb(255 255 255 / 85%)}}',
   '.dshca-toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:70;',
   'padding:6px 14px;border-radius:8px;background:rgb(30 30 30 / 92%);color:#fff;font-size:12px;pointer-events:none}',
 ].join('')
@@ -58,6 +73,12 @@ const ICON_PLUS = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" a
 
 /** 「发送会话」按钮的纸飞机图标（描边风格，颜色随文字）。 */
 const ICON_SEND = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M14 2 7.7 8.3M14 2 9.8 14l-2.1-5.7L2 6.2 14 2Z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+
+/** 「编辑」按钮的铅笔图标（描边风格，颜色随文字）。 */
+const ICON_EDIT = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M11.2 2.2a1.6 1.6 0 0 1 2.6 2.6L6 12.5l-3.5.9.9-3.5 7.8-7.7Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>'
+
+/** 「多选」按钮的叠层图标（描边风格，颜色随文字）。 */
+const ICON_LAYERS = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M3 10.5V3.8C3 3.4 3.4 3 3.8 3h6.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>'
 
 /** 选区锚点要满足的结构面（Element 的最小子集，便于测试）。 */
 export interface SelectionAnchor {
@@ -116,7 +137,7 @@ export function selectionBarPosition(
 }
 
 /** 当前会话编号：会话根节点上框架写的 data-conversation-session。 */
-function currentSessionIdFromDom(): string | undefined {
+export function currentSessionIdFromDom(): string | undefined {
   const node = document.querySelector('[data-conversation-session]')
   const value = node?.getAttribute('data-conversation-session')
   return value === null || value === '' ? undefined : value
@@ -132,6 +153,112 @@ function currentSessionIdFromDom(): string | undefined {
  */
 export function composeFillAppend(existing: string, text: string): string {
   return existing === '' ? `${text} ` : `   ${text} `
+}
+
+/** 多选收藏里的一条：捕获时的文本。 */
+export interface MultiItem {
+  readonly id: number
+  readonly text: string
+}
+
+let multiSeq = 0
+let multiItems: readonly MultiItem[] = []
+let multiRanges: Range[] = []
+const multiListeners = new Set<() => void>()
+const MULTI_HIGHLIGHT = 'dshca-multi'
+
+/** 订阅多选收藏变化（浮动「编辑」钮走它）。 */
+export function subscribeMultiItems(listener: () => void): () => void {
+  multiListeners.add(listener)
+  return () => { multiListeners.delete(listener) }
+}
+
+/** 当前多选收藏（引用稳定，可作 getSnapshot）。 */
+export function getMultiItems(): readonly MultiItem[] {
+  return multiItems
+}
+
+/** 把收藏里的 Range 重新刷进 Custom Highlight 注册表；API 缺席时安静跳过。 */
+function applyMultiHighlight(): void {
+  const holder = globalThis as {
+    CSS?: { highlights?: Map<string, unknown> }
+    Highlight?: unknown
+  }
+  if (holder.CSS?.highlights === undefined || holder.Highlight === undefined) return
+  // 已失效（塌缩）的 Range 直接淘汰。
+  multiRanges = multiRanges.filter(range => range.collapsed === false)
+  if (multiRanges.length === 0) {
+    holder.CSS.highlights.delete(MULTI_HIGHLIGHT)
+    return
+  }
+  // Highlight 构造器的 lib.dom 签名（rest AbstractRange[]）与我们的封装
+  // 对不上，这层浏览器 API 鸿沟用断言跨过；运行时就是 new Highlight(ranges)。
+  const HighlightCtor = holder.Highlight as unknown as new (ranges: Range[]) => unknown
+  holder.CSS.highlights.set(MULTI_HIGHLIGHT, new HighlightCtor(multiRanges))
+}
+
+/** 把当前选区加入多选收藏并保持高亮。 */
+export function addMultiItem(text: string, range: Range): MultiItem {
+  multiSeq += 1
+  const item: MultiItem = { id: multiSeq, text }
+  multiItems = [...multiItems, item]
+  multiRanges = [...multiRanges, range]
+  applyMultiHighlight()
+  for (const listener of multiListeners) listener()
+  return item
+}
+
+/** 清空多选收藏（高亮一并撤掉）。 */
+export function clearMultiItems(): void {
+  multiItems = []
+  multiRanges = []
+  applyMultiHighlight()
+  for (const listener of multiListeners) listener()
+}
+
+/** 多选收藏按原顺序拼接，项与项之间用一个空行隔开。 */
+export function joinMultiTexts(items: readonly MultiItem[]): string {
+  return items.map(item => item.text).join('\n\n')
+}
+
+/** 编辑卡状态：open 时的文本、是否来自多选收藏、以及重挂载用的 seq。 */
+export interface SelectionEditState {
+  readonly text: string
+  readonly multi: boolean
+  readonly seq: number
+}
+
+let editSeq = 0
+let editState: SelectionEditState | null = null
+const editListeners = new Set<() => void>()
+
+/** 订阅编辑卡状态（React 卡片走它）。 */
+export function subscribeSelectionEdit(listener: () => void): () => void {
+  editListeners.add(listener)
+  return () => { editListeners.delete(listener) }
+}
+
+/** 当前编辑卡状态；null 为关闭（引用稳定，可作 getSnapshot）。 */
+export function getSelectionEdit(): SelectionEditState | null {
+  return editState
+}
+
+/**
+ * 打开编辑卡。multi=true 表示内容来自多选收藏：关闭/发送后连同收藏与
+ * 高亮一起清掉；单选编辑不影响收藏。
+ */
+export function openSelectionEdit(text: string, multi: boolean): void {
+  editSeq += 1
+  editState = { text, multi, seq: editSeq }
+  for (const listener of editListeners) listener()
+}
+
+/** 关闭编辑卡；多选来源的关闭会连多选收藏与高亮一起清掉。 */
+export function closeSelectionEdit(): void {
+  const fromMulti = editState?.multi === true
+  editState = null
+  if (fromMulti) clearMultiItems()
+  for (const listener of editListeners) listener()
 }
 
 /**
@@ -164,13 +291,40 @@ export function startSelectionActions(options: { readers: MarkdownTurnReaders; t
     return button
   }
   const fillButton = labeledButton('add-to-chat', ICON_PLUS, options.t('selection.addToChat'))
-  const divider = document.createElement('span')
-  divider.className = 'dshca-divider'
-  divider.setAttribute('aria-hidden', 'true')
   const sendButton = labeledButton('send-to-chat', ICON_SEND, options.t('selection.sendToChat'))
-  root.append(fillButton, divider, sendButton)
+  const editButton = labeledButton('edit-selection', ICON_EDIT, options.t('selection.edit'))
+  const multiButton = labeledButton('multi-add', ICON_LAYERS, options.t('selection.multiAdd'))
+  const divider = (): HTMLSpanElement => {
+    const span = document.createElement('span')
+    span.className = 'dshca-divider'
+    span.setAttribute('aria-hidden', 'true')
+    return span
+  }
+  root.append(fillButton, divider(), sendButton, divider(), editButton, multiButton)
   root.style.display = 'none'
   document.body.appendChild(root)
+
+  // 多选收集后的浮动「编辑」钮：有收藏才出现，点了进编辑卡（多选模式）。
+  const chip = document.createElement('button')
+  chip.type = 'button'
+  chip.className = 'dshca-chip'
+  chip.dataset.dshcaChip = ''
+  chip.style.display = 'none'
+  document.body.appendChild(chip)
+  const updateChip = (): void => {
+    const items = getMultiItems()
+    if (items.length === 0) {
+      chip.style.display = 'none'
+      return
+    }
+    chip.textContent = options.t('selection.editCount', { count: String(items.length) })
+    chip.style.display = 'flex'
+  }
+  updateChip()
+  const unsubscribeChip = subscribeMultiItems(updateChip)
+  chip.addEventListener('click', () => {
+    openSelectionEdit(joinMultiTexts(getMultiItems()), true)
+  })
 
   let showTimer = 0
   const hide = (): void => {
@@ -230,6 +384,23 @@ export function startSelectionActions(options: { readers: MarkdownTurnReaders; t
     }, () => {
       toast(options.t('markdownTurn.sendFailed'))
     })
+  })
+
+  editButton.addEventListener('click', () => {
+    const text = selectedText()
+    if (text === '') { hide(); return }
+    // 单选编辑：进编辑卡，不影响多选收藏。
+    openSelectionEdit(text, false)
+    clearSelection()
+  })
+
+  multiButton.addEventListener('click', () => {
+    const sel = window.getSelection()
+    const text = sel === null ? '' : sel.toString().trim()
+    if (text === '' || sel === null || sel.rangeCount === 0) { hide(); return }
+    // 多选加入：捕获 Range 的副本供持续高亮，浏览器选区随后自然塌缩。
+    addMultiItem(text, sel.getRangeAt(0).cloneRange())
+    hide()
   })
 
   let raf = 0
@@ -296,6 +467,8 @@ export function startSelectionActions(options: { readers: MarkdownTurnReaders; t
     cancelAnimationFrame(raf)
     window.clearTimeout(showTimer)
     window.removeEventListener('resize', onResize)
+    unsubscribeChip()
+    chip.remove()
     document.removeEventListener('selectionchange', onSelectionChange)
     document.removeEventListener('mousedown', onMouseDown, true)
     document.removeEventListener('scroll', onScroll, true)

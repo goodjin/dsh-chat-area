@@ -35,6 +35,7 @@ export type ChatAreaLocaleKey =
   | 'markdownTurn.filesCollapseAria' | 'markdownTurn.openFile'
   | 'markdownTurn.localFileHeader' | 'markdownTurn.localFileTooLarge'
   | 'selection.addToChat' | 'selection.sendToChat' | 'selection.fillFailed'
+  | 'selection.edit' | 'selection.multiAdd' | 'selection.editCount'
 
 export const zh: Record<ChatAreaLocaleKey, string> = {
   'mermaid.label': 'Mermaid',
@@ -95,6 +96,9 @@ export const zh: Record<ChatAreaLocaleKey, string> = {
   'selection.addToChat': '添加到会话',
   'selection.sendToChat': '发送会话',
   'selection.fillFailed': '没有找到输入框',
+  'selection.edit': '编辑',
+  'selection.multiAdd': '多选',
+  'selection.editCount': '编辑 ({count})',
 }
 
 export const en: Record<ChatAreaLocaleKey, string> = {
@@ -156,6 +160,9 @@ export const en: Record<ChatAreaLocaleKey, string> = {
   'selection.addToChat': 'Add to chat',
   'selection.sendToChat': 'Send to chat',
   'selection.fillFailed': 'Composer not found',
+  'selection.edit': 'Edit',
+  'selection.multiAdd': 'Multi-select',
+  'selection.editCount': 'Edit ({count})',
 }
 
 /** `{name}` 形式的参数插值；模板里没有对应参数时原样保留占位符。 */
