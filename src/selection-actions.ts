@@ -123,6 +123,20 @@ function currentSessionIdFromDom(): string | undefined {
 }
 
 /**
+ * 计算填充后的输入框全文：追加到已有草稿**末尾**，与旧内容之间隔
+ * **三个空格**，并在最末尾补**一个空格**（方便用户接着往下输入）。
+ * 草稿为空时直接填入选中内容加尾空格。
+ * @param existing - 输入框里已有的草稿文本（contenteditable 的可见文本）。
+ * @param text - 选中的文字。
+ * @returns 应写入输入框的完整文本。
+ */
+export function composeFillText(existing: string, text: string): string {
+  // contenteditable 的空格可能以 nbsp 形式出现，先归一成普通空格再拼接。
+  const base = existing.replace(/\u00a0/g, ' ')
+  return base === '' ? `${text} ` : `${base}   ${text} `
+}
+
+/**
  * 启动选区弹条：注入样式、挂监听、建弹条元素。
  * @param options - readers（发送口）与文案。
  * @returns 清理函数：摘掉监听并移除弹条元素。
@@ -190,8 +204,12 @@ export function startSelectionActions(options: { readers: MarkdownTurnReaders; t
       return
     }
     composer.focus()
-    // Lexical 绑在 contenteditable 的 beforeinput 上，insertText 会被它正确接住。
-    const ok = document.execCommand('insertText', false, text)
+    // 全选后整段替换：替换文本 = 已有草稿 + 三个空格 + 选中内容 + 尾空格
+    // （composeFillText 负责）。Lexical 绑在 contenteditable 的 beforeinput
+    // 上，selectAll + insertText 都会被它正确接住。
+    document.execCommand('selectAll')
+    const existing = composer.textContent ?? ''
+    const ok = document.execCommand('insertText', false, composeFillText(existing, text))
     if (!ok) toast(options.t('selection.fillFailed'))
     clearSelection()
   })

@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { SELECTION_SHOW_DELAY_MS, selectionAllowed, selectionBarPosition } from '../src/selection-actions.ts'
+import { composeFillText, SELECTION_SHOW_DELAY_MS, selectionAllowed, selectionBarPosition } from '../src/selection-actions.ts'
 
 /** 造一个最小 closest 面：命中集合里的选择器（按逗号拆开比对）返回占位元素，否则 null。 */
 function anchor(matching: readonly string[]): { closest(selector: string): unknown } {
@@ -123,5 +123,19 @@ describe('选区资格判定', () => {
 describe('弹条出现时机', () => {
   it('选中后停顿 1 秒才弹（用户要求的延迟，钉住防止误改）', () => {
     expect(SELECTION_SHOW_DELAY_MS).toBe(1000)
+  })
+})
+
+describe('填充输入框的文本拼接', () => {
+  it('已有草稿时：旧内容 + 三个空格 + 选中文字 + 尾空格', () => {
+    expect(composeFillText('已有草稿', '选中内容')).toBe('已有草稿   选中内容 ')
+  })
+
+  it('草稿为空时：直接是选中文字加尾空格', () => {
+    expect(composeFillText('', '选中内容')).toBe('选中内容 ')
+  })
+
+  it('草稿里的 nbsp 归一成普通空格再拼接', () => {
+    expect(composeFillText('前\u00a0面', '文字')).toBe('前 面   文字 ')
   })
 })
