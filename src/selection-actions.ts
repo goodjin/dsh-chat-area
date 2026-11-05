@@ -180,6 +180,8 @@ export interface MultiItem {
 let multiSeq = 0
 let multiItems: readonly MultiItem[] = []
 let multiRanges: Range[] = []
+/** 收藏归属的会话：浮动条只在当前激活会话 == 它时显示。 */
+let multiSessionId: string | undefined = undefined
 const multiListeners = new Set<() => void>()
 const MULTI_HIGHLIGHT = 'dshca-multi'
 
@@ -219,7 +221,10 @@ function applyMultiHighlight(): void {
 }
 
 /** 把当前选区加入多选收藏并保持高亮。 */
-export function addMultiItem(text: string, range: Range): MultiItem {
+export function addMultiItem(text: string, range: Range, sessionId?: string): MultiItem {
+  // 收藏绑定到收集时的会话：换会话收集会清掉旧会话的收藏流，重开一份。
+  if (multiSessionId !== undefined && multiSessionId !== sessionId) clearMultiItems()
+  if (multiSessionId === undefined) multiSessionId = sessionId
   multiSeq += 1
   const item: MultiItem = { id: multiSeq, text }
   multiItems = [...multiItems, item]
@@ -239,10 +244,11 @@ export function removeMultiItem(id: number): void {
   for (const listener of multiListeners) listener()
 }
 
-/** 清空多选收藏（高亮一并撤掉）。 */
+/** 清空多选收藏（高亮与归属会话一并清掉）。 */
 export function clearMultiItems(): void {
   multiItems = []
   multiRanges = []
+  multiSessionId = undefined
   applyMultiHighlight()
   for (const listener of multiListeners) listener()
 }
@@ -285,10 +291,18 @@ export function getSelectionEdit(): SelectionEditState | null {
  */
 export function selectionEditVisible(state: SelectionEditState | null, activeKey: string | undefined): boolean {
   if (state === null) return false
+  return boundToActiveSession(state.sessionId, activeKey)
+}
+
+/**
+ * 「绑定会话的浮层」是否该在当前视图显示：绑定会话或激活会话读不到时
+ * 放行（避免整块消失），否则只在绑定会话 == 激活会话时显示。
+ */
+export function boundToActiveSession(boundId: string | undefined, activeKey: string | undefined): boolean {
   if (activeKey === undefined) return true
-  // 打开时读不到会话归属（sessionId undefined）：无法判定，放行渲染。
-  if (state.sessionId === undefined) return true
-  return state.sessionId === activeKey
+  // 绑定时读不到会话归属：无法判定，放行。
+  if (boundId === undefined) return true
+  return boundId === activeKey
 }
 
 /**
@@ -360,8 +374,10 @@ export function sessionKeyAccessorsOf(ctx: unknown): {
 export function startSelectionActions(options: {
   readers: MarkdownTurnReaders
   t: RuntimeT
-  /** 当前激活会话 key 的读取器；打开编辑卡时记录归属会话。 */
+  /** 当前激活会话 key 的读取器；打开编辑卡/多选收藏时记录归属会话。 */
   currentSessionKey?: () => string | undefined
+  /** 激活会话变化的订阅；用于切换会话时隐/显多选浮动条。 */
+  subscribeSessionKey?: (listener: () => void) => () => void
 }): () => void {
   if (typeof document === 'undefined') return () => {}
   const style = document.createElement('style')
@@ -417,6 +433,8 @@ export function startSelectionActions(options: {
     removeMultiBars()
     const items = getMultiItems()
     if (items.length === 0) return
+    // 会话绑定：浮动条只出现在收藏归属的那个会话视图里。
+    if (!boundToActiveSession(multiSessionId, options.currentSessionKey?.())) return
     const scroller = document.querySelector('[data-conversation-scroll]')
     if (scroller === null) return
     const rect = scroller.getBoundingClientRect()
@@ -537,7 +555,7 @@ export function startSelectionActions(options: {
     const text = sel === null ? '' : sel.toString().trim()
     if (text === '' || sel === null || sel.rangeCount === 0) { hide(); return }
     // 多选加入：捕获 Range 的副本供持续高亮，浏览器选区随后自然塌缩。
-    const item = addMultiItem(text, sel.getRangeAt(0).cloneRange())
+    const item = addMultiItem(text, sel.getRangeAt(0).cloneRange(), options.currentSessionKey?.())
     toast(options.t('selection.multiAdded', { count: String(item.id) }))
     hide()
   })
@@ -601,11 +619,13 @@ export function startSelectionActions(options: {
   document.addEventListener('scroll', onScroll, true)
   document.addEventListener('keydown', onKeyDown)
   window.addEventListener('resize', onResize)
+  const unsubscribeSessionKey = options.subscribeSessionKey?.(rebuildPanel)
 
   return () => {
     cancelAnimationFrame(raf)
     window.clearTimeout(showTimer)
     window.removeEventListener('resize', onResize)
+    unsubscribeSessionKey?.()
     unsubscribeChip()
     removeMultiBars()
     document.removeEventListener('selectionchange', onSelectionChange)
@@ -629,6 +649,6 @@ export function startSelectionActionsFromRemote(
   return startSelectionActions({
     readers: createMarkdownTurnReaders(remote),
     t,
-    ...(sessionKey === undefined ? {} : { currentSessionKey: sessionKey.getKey }),
+    ...(sessionKey === undefined ? {} : { currentSessionKey: sessionKey.getKey, subscribeSessionKey: sessionKey.subscribeKey }),
   })
 }

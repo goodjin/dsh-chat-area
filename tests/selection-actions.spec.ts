@@ -13,6 +13,7 @@ import {
   composeFillAppend,
   getMultiItems,
   getSelectionEdit,
+  boundToActiveSession,
   joinMultiTexts,
   openSelectionEdit,
   removeMultiItem,
@@ -151,6 +152,17 @@ describe('填充输入框的追加文本', () => {
 })
 
 describe('多选收藏', () => {
+  it('收藏绑定收集时的会话：换会话收集会重开新会话的收藏流', () => {
+    clearMultiItems()
+    addMultiItem('A 会话第一段', { collapsed: false } as unknown as Range, 'session-a')
+    addMultiItem('A 会话第二段', { collapsed: false } as unknown as Range, 'session-a')
+    expect(getMultiItems().map(item => item.text)).toEqual(['A 会话第一段', 'A 会话第二段'])
+    // 切到会话 B 收集：旧收藏清掉，重开 B 的收藏流。
+    addMultiItem('B 会话内容', { collapsed: false } as unknown as Range, 'session-b')
+    expect(getMultiItems().map(item => item.text)).toEqual(['B 会话内容'])
+    clearMultiItems()
+  })
+
   it('按捕获顺序追加；join 按原顺序、项间空行拼接', () => {
     clearMultiItems()
     addMultiItem('第一段', { collapsed: false } as unknown as Range)
@@ -244,5 +256,18 @@ describe('编辑卡的会话作用域可见性', () => {
 
   it('切换到别的会话：不渲染（否则每个打开过的会话都盖住输入框）', () => {
     expect(selectionEditVisible(state('session-a'), 'session-b')).toBe(false)
+  })
+})
+
+describe('绑定会话的浮层可见性', () => {
+  it('绑定会话或激活会话读不到：放行（避免整块消失）', () => {
+    expect(boundToActiveSession(undefined, 'session-a')).toBe(true)
+    expect(boundToActiveSession('session-a', undefined)).toBe(true)
+    expect(boundToActiveSession(undefined, undefined)).toBe(true)
+  })
+
+  it('绑定会话 == 激活会话：显示；不一致：隐藏', () => {
+    expect(boundToActiveSession('session-a', 'session-a')).toBe(true)
+    expect(boundToActiveSession('session-a', 'session-b')).toBe(false)
   })
 })
