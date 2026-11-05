@@ -57,10 +57,10 @@ const BAR_CSS = [
   // 多选高亮：CSS Custom Highlight API（Chromium），不动宿主 DOM；缺席时
   // 只收藏文本、不做视觉标记。
   `::highlight(dshca-multi){background-color:rgb(59 130 246 / 32%)}`,
-  // 多选收集后的浮动「编辑」钮（右下角，会话工具入口上方）。
-  '.dshca-chip{position:fixed;right:24px;bottom:132px;z-index:60;display:flex;align-items:center;gap:6px;',
-  'padding:6px 14px;border-radius:10px;background:#fff;border:1px solid rgb(0 0 0 / 8%);',
-  'box-shadow:0 4px 16px rgb(0 0 0 / 16%);color:rgb(0 0 0 / 78%);font:inherit;font-size:12.5px;cursor:pointer}',
+  // 多选收集后的浮动「编辑」钮（右侧垂直居中，z-index 高于会话内容与 composer）。
+  '.dshca-chip{position:fixed;right:16px;bottom:25vh;z-index:90;display:flex;align-items:center;gap:6px;',
+  'padding:8px 16px;border-radius:10px;background:#fff;border:1px solid rgb(0 0 0 / 8%);',
+  'box-shadow:0 4px 16px rgb(0 0 0 / 16%);color:rgb(0 0 0 / 78%);font:inherit;font-size:13px;cursor:pointer}',
   '.dshca-chip:hover{background:rgb(0 0 0 / 4%)}',
   '@media (prefers-color-scheme:dark){.dshca-chip{background:#2b2b30;border-color:rgb(255 255 255 / 10%);',
   'box-shadow:0 4px 16px rgb(0 0 0 / 45%);color:rgb(255 255 255 / 85%)}}',
@@ -184,7 +184,10 @@ function applyMultiHighlight(): void {
     CSS?: { highlights?: Map<string, unknown> }
     Highlight?: unknown
   }
-  if (holder.CSS?.highlights === undefined || holder.Highlight === undefined) return
+  if (holder.CSS?.highlights === undefined || holder.Highlight === undefined) {
+    console.info('[threadharbor-chat-area] CSS Custom Highlight API unavailable; multi-select keeps text only')
+    return
+  }
   // 已失效（塌缩）的 Range 直接淘汰。
   multiRanges = multiRanges.filter(range => range.collapsed === false)
   if (multiRanges.length === 0) {
@@ -399,7 +402,8 @@ export function startSelectionActions(options: { readers: MarkdownTurnReaders; t
     const text = sel === null ? '' : sel.toString().trim()
     if (text === '' || sel === null || sel.rangeCount === 0) { hide(); return }
     // 多选加入：捕获 Range 的副本供持续高亮，浏览器选区随后自然塌缩。
-    addMultiItem(text, sel.getRangeAt(0).cloneRange())
+    const item = addMultiItem(text, sel.getRangeAt(0).cloneRange())
+    toast(options.t('selection.multiAdded', { count: String(item.id) }))
     hide()
   })
 

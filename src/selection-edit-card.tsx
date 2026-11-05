@@ -1,18 +1,21 @@
 /**
- * 选区编辑卡：弹条「编辑」/ 多选浮动「编辑」钮打开的编辑框，渲染在
- * composer 上方的 overlay 座位（与本机文件卡同座，order 22 排在其后）。
+ * 选区编辑卡：弹条「编辑」/ 多选浮动「编辑」钮打开的编辑框。
+ *
+ * 展示形态（2026-11-05 用户要求）：**占满整个会话区域**——卡片用 fixed
+ * 定位覆盖 `[data-conversation-scroll]` 的客户区（含 16px 内边距），不随
+ * 消息滚动移动；窗口尺寸变化时重新对位。高度天然远超 10 行的下限。
  *
  * 文本来自 selection-actions.ts 的编辑卡 store：
  * - 单选编辑：初始为选中的文字，关闭/发送不影响多选收藏；
  * - 多选编辑：初始为收藏按原顺序、项间空行拼接的全文，关闭/发送后
  *   连同收藏与高亮一起清掉。
  *
- * 高度至少 10 行；动作行与编辑卡一致——描边「新建会话」（新会话继承
- * 当前会话的工作目录）+ 圆形发送钮。
+ * 动作行与编辑卡一致——描边「新建会话」（新会话继承当前会话的工作目录）
+ * + 圆形发送钮；头部右侧关闭钮退出编辑。
  */
-import { useRef, useState, useSyncExternalStore } from 'react'
+import { useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
-import { IconNewChatOutlineRegular, IconSendOutlineRegular, IconWarningOutlineRegular, Toast } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconCloseOutlineRegular, IconNewChatOutlineRegular, IconSendOutlineRegular, IconWarningOutlineRegular, Toast } from '@deepseek-ai/dsh-client-ui-primitives'
 import { closeSelectionEdit, currentSessionIdFromDom, getSelectionEdit, subscribeSelectionEdit } from './selection-actions.ts'
 import type { SelectionEditState } from './selection-actions.ts'
 import type { MarkdownTurnReaders } from './markdown-turn-sources.ts'
@@ -22,6 +25,9 @@ import css from './markdown-turn.module.css'
 
 export const SELECTION_EDIT_ID = 'chat-area-selection-edit'
 
+/** 编辑卡覆盖会话区域时的内边距。 */
+const COVER_PADDING = 16
+
 function SelectionEditCard(props: {
   readonly state: SelectionEditState
   readonly readers: MarkdownTurnReaders
@@ -29,7 +35,26 @@ function SelectionEditCard(props: {
 }): ReactNode {
   const [toast, setToast] = useState<{ seq: number; text: string } | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const coverRef = useRef<HTMLDivElement>(null)
   const t = props.t
+
+  // 覆盖层对位：跟随会话滚动容器的客户区；窗口尺寸变化时重算。
+  useLayoutEffect(() => {
+    const align = (): void => {
+      const cover = coverRef.current
+      if (cover === null) return
+      const scroller = document.querySelector('[data-conversation-scroll]')
+      if (scroller === null) return
+      const rect = scroller.getBoundingClientRect()
+      cover.style.left = `${rect.left + COVER_PADDING}px`
+      cover.style.top = `${rect.top + COVER_PADDING}px`
+      cover.style.width = `${rect.width - COVER_PADDING * 2}px`
+      cover.style.height = `${rect.height - COVER_PADDING * 2}px`
+    }
+    align()
+    window.addEventListener('resize', align)
+    return () => { window.removeEventListener('resize', align) }
+  }, [])
 
   const send = (toNew: boolean): void => {
     const body = inputRef.current?.value ?? ''
@@ -54,6 +79,8 @@ function SelectionEditCard(props: {
     })
   }
 
+  const title = t(props.state.multi ? 'selection.multiEditTitle' : 'selection.editTitle')
+
   return (
     <>
       {toast !== null && <Toast
@@ -62,7 +89,26 @@ function SelectionEditCard(props: {
         icon={<IconWarningOutlineRegular />}
         onDone={() => { setToast(null) }}
       />}
-      <div className={css.editCard} data-selection-edit-card="">
+      {/* fixed 覆盖会话区域：占满整个聊天视口，不随消息滚动移动。 */}
+      <div
+        ref={coverRef}
+        className={css.editCard}
+        data-selection-edit-cover=""
+        style={{ position: 'fixed', zIndex: 40 }}
+      >
+        <div className={css.localHead}>
+          <span className={css.localName}>{title}</span>
+          <button
+            type="button"
+            className={css.iconButton}
+            data-selection-edit-close=""
+            aria-label={t('markdownTurn.cancel')}
+            title={t('markdownTurn.cancel')}
+            onClick={() => { closeSelectionEdit() }}
+          >
+            <IconCloseOutlineRegular size={15} />
+          </button>
+        </div>
         <textarea
           ref={inputRef}
           className={css.editInput}
@@ -70,7 +116,7 @@ function SelectionEditCard(props: {
           defaultValue={props.state.text}
           autoFocus
           aria-label={t('selection.edit')}
-          style={{ minHeight: '224px' }}
+          style={{ flex: 1, minHeight: '224px' }}
         />
         <div className={css.editActions}>
           <button

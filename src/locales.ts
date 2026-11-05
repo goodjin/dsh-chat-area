@@ -36,6 +36,7 @@ export type ChatAreaLocaleKey =
   | 'markdownTurn.localFileHeader' | 'markdownTurn.localFileTooLarge'
   | 'selection.addToChat' | 'selection.sendToChat' | 'selection.fillFailed'
   | 'selection.edit' | 'selection.multiAdd' | 'selection.editCount'
+  | 'selection.multiAdded' | 'selection.editTitle' | 'selection.multiEditTitle'
 
 export const zh: Record<ChatAreaLocaleKey, string> = {
   'mermaid.label': 'Mermaid',
@@ -99,6 +100,9 @@ export const zh: Record<ChatAreaLocaleKey, string> = {
   'selection.edit': '编辑',
   'selection.multiAdd': '多选',
   'selection.editCount': '编辑 ({count})',
+  'selection.multiAdded': '已加入多选（{count}）',
+  'selection.editTitle': '编辑选中内容',
+  'selection.multiEditTitle': '编辑多选内容',
 }
 
 export const en: Record<ChatAreaLocaleKey, string> = {
@@ -163,6 +167,9 @@ export const en: Record<ChatAreaLocaleKey, string> = {
   'selection.edit': 'Edit',
   'selection.multiAdd': 'Multi-select',
   'selection.editCount': 'Edit ({count})',
+  'selection.multiAdded': 'Added to multi-select ({count})',
+  'selection.editTitle': 'Edit selected text',
+  'selection.multiEditTitle': 'Edit multi-selected text',
 }
 
 /** `{name}` 形式的参数插值；模板里没有对应参数时原样保留占位符。 */
