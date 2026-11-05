@@ -57,13 +57,29 @@ const BAR_CSS = [
   // 多选高亮：CSS Custom Highlight API（Chromium），不动宿主 DOM；缺席时
   // 只收藏文本、不做视觉标记。
   `::highlight(dshca-multi){background-color:rgb(59 130 246 / 32%)}`,
-  // 多选收集后的浮动「编辑」钮（右侧垂直居中，z-index 高于会话内容与 composer）。
-  '.dshca-chip{position:fixed;right:16px;bottom:25vh;z-index:90;display:flex;align-items:center;gap:6px;',
-  'padding:8px 16px;border-radius:10px;background:#fff;border:1px solid rgb(0 0 0 / 8%);',
-  'box-shadow:0 4px 16px rgb(0 0 0 / 16%);color:rgb(0 0 0 / 78%);font:inherit;font-size:13px;cursor:pointer}',
-  '.dshca-chip:hover{background:rgb(0 0 0 / 4%)}',
-  '@media (prefers-color-scheme:dark){.dshca-chip{background:#2b2b30;border-color:rgb(255 255 255 / 10%);',
-  'box-shadow:0 4px 16px rgb(0 0 0 / 45%);color:rgb(255 255 255 / 85%)}}',
+  // 多选清单面板：贴会话区域顶部，每条一段预览 + 删除钮，底部浮动「编辑」钮。
+  '.dshca-panel{position:fixed;z-index:90;flex-direction:column;gap:2px;padding:6px;',
+  'border-radius:10px;background:#fff;border:1px solid rgb(0 0 0 / 8%);box-shadow:0 4px 16px rgb(0 0 0 / 16%)}',
+  '@media (prefers-color-scheme:dark){.dshca-panel{background:#2b2b30;border-color:rgb(255 255 255 / 10%);',
+  'box-shadow:0 4px 16px rgb(0 0 0 / 45%)}}',
+  '.dshca-panel-item{align-items:center;gap:6px;padding:2px 4px;border-radius:6px;display:flex}',
+  '.dshca-panel-item:hover{background:rgb(0 0 0 / 4%)}',
+  '@media (prefers-color-scheme:dark){.dshca-panel-item:hover{background:rgb(255 255 255 / 8%)}}',
+  '.dshca-panel-text{text-overflow:ellipsis;white-space:nowrap;color:rgb(0 0 0 / 75%);',
+  'flex:1;min-width:0;font-size:12px;line-height:20px;overflow:hidden}',
+  '@media (prefers-color-scheme:dark){.dshca-panel-text{color:rgb(255 255 255 / 80%)}}',
+  '.dshca-panel-remove{color:rgb(0 0 0 / 45%);cursor:pointer;background:0 0;border:none;',
+  'border-radius:4px;flex:none;width:20px;height:20px;font-size:14px;line-height:1}',
+  '.dshca-panel-remove:hover{background:rgb(0 0 0 / 8%);color:rgb(0 0 0 / 70%)}',
+  '@media (prefers-color-scheme:dark){.dshca-panel-remove{color:rgb(255 255 255 / 50%)}',
+  '.dshca-panel-remove:hover{background:rgb(255 255 255 / 12%);color:rgb(255 255 255 / 80%)}}',
+  '.dshca-panel-edit{border:none;background:rgb(0 0 0 / 6%);color:rgb(0 0 0 / 78%);font:inherit;',
+  'font-size:12.5px;line-height:18px;padding:6px 12px;border-radius:7px;cursor:pointer;',
+  'text-align:center;margin-top:2px}',
+  '.dshca-panel-edit:hover{background:rgb(0 0 0 / 12%)}',
+  '@media (prefers-color-scheme:dark){.dshca-panel-edit{background:rgb(255 255 255 / 10%);',
+  'color:rgb(255 255 255 / 85%)}}',
+  '@media (prefers-color-scheme:dark){.dshca-panel-edit:hover{background:rgb(255 255 255 / 16%)}}',
   '.dshca-toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:70;',
   'padding:6px 14px;border-radius:8px;background:rgb(30 30 30 / 92%);color:#fff;font-size:12px;pointer-events:none}',
 ].join('')
@@ -212,6 +228,16 @@ export function addMultiItem(text: string, range: Range): MultiItem {
   applyMultiHighlight()
   for (const listener of multiListeners) listener()
   return item
+}
+
+/** 移除一条多选收藏（对应的高亮一并撤掉，其余条目保持原顺序）。 */
+export function removeMultiItem(id: number): void {
+  const index = multiItems.findIndex(item => item.id === id)
+  if (index < 0) return
+  multiItems = multiItems.filter(item => item.id !== id)
+  multiRanges = multiRanges.filter((_, position) => position !== index)
+  applyMultiHighlight()
+  for (const listener of multiListeners) listener()
 }
 
 /** 清空多选收藏（高亮一并撤掉）。 */
@@ -375,27 +401,60 @@ export function startSelectionActions(options: {
   root.style.display = 'none'
   document.body.appendChild(root)
 
-  // 多选收集后的浮动「编辑」钮：有收藏才出现，点了进编辑卡（多选模式）。
-  const chip = document.createElement('button')
-  chip.type = 'button'
-  chip.className = 'dshca-chip'
-  chip.dataset.dshcaChip = ''
-  chip.style.display = 'none'
-  document.body.appendChild(chip)
-  const updateChip = (): void => {
+  // 多选清单面板：贴会话区域顶部，每条预览 + 删除钮，底部「编辑 (n)」钮。
+  const panel = document.createElement('div')
+  panel.className = 'dshca-panel'
+  panel.dataset.dshcaPanel = ''
+  panel.style.display = 'none'
+  document.body.appendChild(panel)
+  const alignPanel = (): void => {
+    const scroller = document.querySelector('[data-conversation-scroll]')
+    if (scroller === null) return
+    const rect = scroller.getBoundingClientRect()
+    panel.style.left = `${rect.left + 16}px`
+    panel.style.top = `${rect.top + 8}px`
+    panel.style.width = `${Math.max(rect.width - 32, 240)}px`
+  }
+  const rebuildPanel = (): void => {
     const items = getMultiItems()
+    panel.textContent = ''
     if (items.length === 0) {
-      chip.style.display = 'none'
+      panel.style.display = 'none'
       return
     }
-    chip.textContent = options.t('selection.editCount', { count: String(items.length) })
-    chip.style.display = 'flex'
+    for (const item of items) {
+      const row = document.createElement('div')
+      row.className = 'dshca-panel-item'
+      const preview = document.createElement('span')
+      preview.className = 'dshca-panel-text'
+      const flat = item.text.replace(/\s+/g, ' ')
+      preview.textContent = flat.length > 60 ? `${flat.slice(0, 60)}…` : flat
+      preview.title = item.text
+      const remove = document.createElement('button')
+      remove.type = 'button'
+      remove.className = 'dshca-panel-remove'
+      remove.dataset.action = 'remove-multi'
+      remove.setAttribute('aria-label', options.t('selection.removeItem'))
+      remove.title = options.t('selection.removeItem')
+      remove.textContent = '×'
+      remove.addEventListener('click', () => { removeMultiItem(item.id) })
+      row.append(preview, remove)
+      panel.appendChild(row)
+    }
+    const edit = document.createElement('button')
+    edit.type = 'button'
+    edit.className = 'dshca-panel-edit'
+    edit.dataset.action = 'edit-multi'
+    edit.textContent = options.t('selection.editCount', { count: String(items.length) })
+    edit.addEventListener('click', () => {
+      openSelectionEdit(joinMultiTexts(getMultiItems()), true, options.currentSessionKey?.())
+    })
+    panel.appendChild(edit)
+    alignPanel()
+    panel.style.display = 'flex'
   }
-  updateChip()
-  const unsubscribeChip = subscribeMultiItems(updateChip)
-  chip.addEventListener('click', () => {
-    openSelectionEdit(joinMultiTexts(getMultiItems()), true, options.currentSessionKey?.())
-  })
+  rebuildPanel()
+  const unsubscribeChip = subscribeMultiItems(rebuildPanel)
 
   let showTimer = 0
   const hide = (): void => {
@@ -524,7 +583,7 @@ export function startSelectionActions(options: {
     hide()
   }
   const onScroll = (): void => { hide() }
-  const onResize = (): void => { hide() }
+  const onResize = (): void => { hide(); alignPanel() }
   const onKeyDown = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') hide()
   }
@@ -540,7 +599,7 @@ export function startSelectionActions(options: {
     window.clearTimeout(showTimer)
     window.removeEventListener('resize', onResize)
     unsubscribeChip()
-    chip.remove()
+    panel.remove()
     document.removeEventListener('selectionchange', onSelectionChange)
     document.removeEventListener('mousedown', onMouseDown, true)
     document.removeEventListener('scroll', onScroll, true)

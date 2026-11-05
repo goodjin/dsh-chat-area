@@ -36,6 +36,7 @@ export type ChatAreaLocaleKey =
   | 'markdownTurn.localFileHeader' | 'markdownTurn.localFileTooLarge'
   | 'selection.addToChat' | 'selection.sendToChat' | 'selection.fillFailed'
   | 'selection.edit' | 'selection.multiAdd' | 'selection.editCount'
+  | 'selection.removeItem'
   | 'selection.multiAdded' | 'selection.editTitle' | 'selection.multiEditTitle'
 
 export const zh: Record<ChatAreaLocaleKey, string> = {
@@ -100,6 +101,7 @@ export const zh: Record<ChatAreaLocaleKey, string> = {
   'selection.edit': '编辑',
   'selection.multiAdd': '多选',
   'selection.editCount': '编辑 ({count})',
+  'selection.removeItem': '移除该条',
   'selection.multiAdded': '已加入多选（{count}）',
   'selection.editTitle': '编辑选中内容',
   'selection.multiEditTitle': '编辑多选内容',
@@ -167,6 +169,7 @@ export const en: Record<ChatAreaLocaleKey, string> = {
   'selection.edit': 'Edit',
   'selection.multiAdd': 'Multi-select',
   'selection.editCount': 'Edit ({count})',
+  'selection.removeItem': 'Remove this item',
   'selection.multiAdded': 'Added to multi-select ({count})',
   'selection.editTitle': 'Edit selected text',
   'selection.multiEditTitle': 'Edit multi-selected text',

@@ -15,6 +15,7 @@ import {
   getSelectionEdit,
   joinMultiTexts,
   openSelectionEdit,
+  removeMultiItem,
   SELECTION_SHOW_DELAY_MS,
   selectionAllowed,
   selectionBarPosition,
@@ -159,6 +160,26 @@ describe('多选收藏', () => {
     expect(joinMultiTexts(items)).toBe('第一段\n\n第二段')
     clearMultiItems()
     expect(getMultiItems()).toEqual([])
+  })
+
+  it('移除中间一条：其余条目保持原顺序，对应高亮一并撤掉', () => {
+    clearMultiItems()
+    addMultiItem('第一段', { collapsed: false } as unknown as Range)
+    addMultiItem('第二段', { collapsed: false } as unknown as Range)
+    addMultiItem('第三段', { collapsed: false } as unknown as Range)
+    removeMultiItem(getMultiItems()[1]!.id)
+    const items = getMultiItems()
+    expect(items.map(item => item.text)).toEqual(['第一段', '第三段'])
+    expect(joinMultiTexts(items)).toBe('第一段\n\n第三段')
+    clearMultiItems()
+  })
+
+  it('移除不存在的 id：静默无变化', () => {
+    clearMultiItems()
+    addMultiItem('第一段', { collapsed: false } as unknown as Range)
+    removeMultiItem(9999)
+    expect(getMultiItems().map(item => item.text)).toEqual(['第一段'])
+    clearMultiItems()
   })
 
   it('收藏里的失效（塌缩）Range 在重刷高亮时被淘汰，文本保留', () => {
