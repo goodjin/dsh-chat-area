@@ -150,6 +150,59 @@ describe('统一编辑链路', () => {
   })
 })
 
+describe('文件卡片与选区统一', () => {
+  const read = (relative: string): string => readFileSync(new URL(relative, import.meta.url), 'utf8')
+
+  it('批注锚点在文档变化后仍挂对应段落之后', async () => {
+    const { composeWithComments, segmentWithComments } = await import('../src/markdown-turn.tsx')
+    const source = '第一段。\n\n第二段。\n\n第三段。'
+    const segments = segmentWithComments(source, [{ id: 1, blockText: '第二段。', comment: '看这段' }])
+    expect(segments[0]!.text).toContain('第二段。')
+    expect(segments[0]!.comments.map(comment => comment.comment)).toEqual(['看这段'])
+    const composed = composeWithComments(source, [
+      { blockText: '第二段。', comment: '批注甲' },
+      { blockText: '第二段。', comment: '批注乙' },
+    ])
+    expect(composed.indexOf('批注甲')).toBeGreaterThan(composed.lastIndexOf('第二段。') - '第二段。'.length)
+    expect(composed.indexOf('批注乙')).toBeGreaterThan(composed.indexOf('批注甲'))
+  })
+
+  it('汇总发送只在成功后清空批注：不再发送即清', () => {
+    const source = read('../src/markdown-turn.tsx')
+    expect(source).toContain('createSendController')
+    expect(source).not.toMatch(/sendText\([^)]*\);\s*setComments\(\[\]\)/)
+    expect(source).toMatch(/onSuccess[\s\S]{0,120}setComments\(\[\]\)/)
+  })
+
+  it('文件组有「本轮文件 · n」标题，文件行主名 + 目录辅助行', () => {
+    const source = read('../src/markdown-turn.tsx')
+    expect(source).toContain('markdownTurn.filesGroup')
+    expect(source).toContain('nameDir')
+    const locale = read('../src/locales.ts')
+    expect(locale).toContain("'markdownTurn.filesGroup'")
+    expect(locale).toContain("'markdownTurn.commentsPending'")
+    expect(locale).toContain("'selection.collectedCount'")
+  })
+
+  it('选区与收集浮层只用宿主 token 材质；移除热区 24px、面板限高内部滚动', () => {
+    const source = read('../src/selection-actions.ts')
+    expect(source).not.toContain('background:#fff')
+    expect(source).not.toContain('#2b2b30')
+    expect(source).not.toContain('rgb(30 30 30')
+    expect(source).not.toContain('prefers-color-scheme')
+    expect(source).toMatch(/\.dshca-bar-remove\{[^}]*width:24px/)
+    expect(source).toContain('max-height')
+    expect(source).toMatch(/\.dshca-panel\{[^}]*overflow-y:auto/)
+  })
+
+  it('文件阅读区样式不再自带深色媒体查询（主题交给宿主 token）', () => {
+    const css = read('../src/markdown-turn.module.css')
+    expect(css).not.toContain('@media (prefers-color-scheme')
+    expect(css).not.toContain('#2b2b30')
+    expect(css).not.toContain('#4d6bfe')
+  })
+})
+
 describe('统一发送控制器', () => {
   it('空白文本直接拒绝：不发起请求、不进入 pending、不回调', async () => {
     const sent: string[] = []

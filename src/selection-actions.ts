@@ -28,66 +28,58 @@ import type { RuntimeT } from './locales.ts'
 /** 选中停下多少毫秒后才弹条：拖拽选择期间不弹，停下 1 秒才出现。 */
 export const SELECTION_SHOW_DELAY_MS = 1000
 
-/** 弹条与提示的样式；类名带 dshca- 前缀避免与页面样式冲突。 */
+/** 弹条与提示的样式；类名带 dshca- 前缀避免与页面样式冲突。材质全部走宿主语义 token——不再自带深色媒体查询（主题由宿主 token 表达），写死值只作 token 缺席时的中性回退。 */
 const BAR_CSS = [
-  // 卡片：白底圆角、轻描边、柔和投影；暗色主题换深色浮层材质。
+  // 弹条卡片：浮层材质（token 底 + 细描边 + 柔和投影），圆角与控件统一 6–10px。
   '.dshca-selbar{position:fixed;z-index:60;display:flex;align-items:center;gap:2px;padding:4px;',
-  'border-radius:10px;background:#fff;border:1px solid rgb(0 0 0 / 8%);box-shadow:0 4px 16px rgb(0 0 0 / 16%)}',
-  '@media (prefers-color-scheme:dark){.dshca-selbar{background:#2b2b30;border-color:rgb(255 255 255 / 10%);',
-  'box-shadow:0 4px 16px rgb(0 0 0 / 45%)}}',
+  'border-radius:10px;background:var(--dsw-alias-bg-container,rgb(255 255 255 / 96%));',
+  'border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.2));box-shadow:0 4px 16px rgb(0 0 0 / 16%)}',
   // 尖角：默认在弹条下方（朝下指向选区）；data-arrow="up" 时翻到上方，
   // 材质与卡片一致。水平位置由 JS 写入 --dshca-arrow-x。
   '.dshca-selbar::after{content:"";position:absolute;bottom:-5px;left:var(--dshca-arrow-x,16px);',
-  'margin-left:-5px;border:5px solid transparent;border-top-color:#fff;border-bottom:0}',
-  '@media (prefers-color-scheme:dark){.dshca-selbar::after{border-top-color:#2b2b30}}',
+  'margin-left:-5px;border:5px solid transparent;border-top-color:var(--dsw-alias-bg-container,#fff);border-bottom:0}',
   '.dshca-selbar[data-arrow="up"]::after{bottom:auto;top:-5px;',
-  'border-top:0;border-bottom:5px solid #fff}',
-  '@media (prefers-color-scheme:dark){.dshca-selbar[data-arrow="up"]::after{border-bottom-color:#2b2b30}}',
-  // 按钮：图标 + 文字，浅色字，hover 铺一层淡底。
+  'border-top:0;border-bottom:5px solid var(--dsw-alias-bg-container,#fff)}',
+  // 按钮：图标 + 文字，宿主主文字色，hover 铺 token 淡底。
   '.dshca-selbar button{display:inline-flex;align-items:center;gap:6px;border:none;background:transparent;',
-  'color:rgb(0 0 0 / 78%);font:inherit;font-size:12.5px;line-height:18px;padding:5px 12px;',
+  'color:var(--dsw-alias-label-primary,inherit);font:inherit;font-size:12.5px;line-height:18px;padding:5px 12px;',
   'border-radius:7px;cursor:pointer;white-space:nowrap}',
   '.dshca-selbar button svg{flex:none}',
-  '.dshca-selbar button:hover{background:rgb(0 0 0 / 6%)}',
-  '@media (prefers-color-scheme:dark){.dshca-selbar button{color:rgb(255 255 255 / 85%)}',
-  '.dshca-selbar button:hover{background:rgb(255 255 255 / 10%)}}',
+  '.dshca-selbar button:hover{background:var(--dsw-alias-bg-hover,rgba(127,127,127,.1))}',
+  '.dshca-selbar button:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary,currentColor));outline-offset:1px}',
   // 两个按钮之间的细分隔线。
-  '.dshca-selbar .dshca-divider{width:1px;height:16px;flex:none;background:rgb(0 0 0 / 10%)}',
-  '@media (prefers-color-scheme:dark){.dshca-selbar .dshca-divider{background:rgb(255 255 255 / 12%)}}',
+  '.dshca-selbar .dshca-divider{width:1px;height:16px;flex:none;background:var(--dsw-alias-border-l1,rgba(127,127,127,.15))}',
   // 多选高亮：CSS Custom Highlight API（Chromium），不动宿主 DOM；缺席时
-  // 只收藏文本、不做视觉标记。
-  `::highlight(dshca-multi){background-color:rgb(59 130 246 / 32%)}`,
-  // 多选浮动条：每条独立、圆角、贴会话区域顶部纵向堆叠（间距 2px），
-  // 宽度为会话区域的一半；编辑是小按钮，压在最后一条的右下方（间距 5px）。
-  // 双层阴影（近投影 + 远弥散）让条有立体感。
-  '.dshca-bar{position:fixed;z-index:90;display:flex;align-items:center;gap:8px;',
-  'height:28px;padding:0 10px;border-radius:8px;background:#fff;',
-  'border:1px solid rgb(0 0 0 / 8%);',
-  'box-shadow:0 1px 2px rgb(0 0 0 / 10%), 0 6px 20px rgb(0 0 0 / 18%);box-sizing:border-box}',
-  '@media (prefers-color-scheme:dark){.dshca-bar{background:#2b2b30;border-color:rgb(255 255 255 / 10%);',
-  'box-shadow:0 1px 2px rgb(0 0 0 / 40%), 0 6px 20px rgb(0 0 0 / 50%)}}',
-  // 列表圆点标记：彩色实心圆（品牌色），直径 8px。
+  // 只收藏文本、不做视觉标记。品牌色 30% 透明版（color-mix 从宿主 token 调出）。
+  `::highlight(dshca-multi){background-color:color-mix(in srgb,var(--dsw-alias-state-business-primary,rgb(59 130 246)) 30%,transparent)}`,
+  // 多选收集面板：单一容器（宽度为会话区域一半），条目纵向堆叠（间距 4px），
+  // 超过 40vh 限高、面板内部滚动——不再无限覆盖正文。
+  '.dshca-panel{position:fixed;z-index:90;display:flex;flex-direction:column;gap:4px;box-sizing:border-box;',
+  'max-height:min(40vh,320px);overflow-y:auto;padding:6px;border-radius:10px;',
+  'background:var(--dsw-alias-bg-container,rgb(255 255 255 / 96%));',
+  'border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.2));box-shadow:0 4px 16px rgb(0 0 0 / 16%)}',
+  // 面板里的一条收藏：32px 行高，预览 + 24px 移除热区。
+  '.dshca-bar{display:flex;align-items:center;gap:8px;flex:none;height:32px;padding:0 10px;border-radius:8px;',
+  'background:var(--dsw-alias-bg-hover,rgba(127,127,127,.08))}',
   '.dshca-bar-dot{width:8px;height:8px;border-radius:50%;flex:none;',
-  'background:var(--dsw-alias-state-business-primary, rgb(59 130 246))}',
-  '.dshca-bar-text{text-overflow:ellipsis;white-space:nowrap;color:rgb(0 0 0 / 75%);',
+  'background:var(--dsw-alias-state-business-primary,rgb(59 130 246))}',
+  '.dshca-bar-text{text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-primary,inherit);',
   'flex:1;min-width:0;font-size:12px;line-height:20px;overflow:hidden}',
-  '@media (prefers-color-scheme:dark){.dshca-bar-text{color:rgb(255 255 255 / 80%)}}',
-  '.dshca-bar-remove{color:rgb(0 0 0 / 45%);cursor:pointer;background:0 0;border:none;',
-  'border-radius:4px;flex:none;width:18px;height:18px;font-size:14px;line-height:1}',
-  '.dshca-bar-remove:hover{background:rgb(0 0 0 / 8%);color:rgb(0 0 0 / 70%)}',
-  '@media (prefers-color-scheme:dark){.dshca-bar-remove{color:rgb(255 255 255 / 50%)}',
-  '.dshca-bar-remove:hover{background:rgb(255 255 255 / 12%);color:rgb(255 255 255 / 80%)}}',
-  '.dshca-bar-edit{position:fixed;z-index:90;border:none;background:#fff;color:rgb(0 0 0 / 78%);',
-  'font:inherit;font-size:12px;line-height:18px;padding:2px 10px;border-radius:6px;cursor:pointer;',
-  'white-space:nowrap;border:1px solid rgb(0 0 0 / 8%);box-shadow:0 4px 16px rgb(0 0 0 / 16%);box-sizing:border-box}',
-  // hover 用**不透明的深色**（选中/按下的观感），不用半透明叠加——那会
-  // 看起来像按钮变透明。
-  '.dshca-bar-edit:hover{background:#d7d9de}',
-  '@media (prefers-color-scheme:dark){.dshca-bar-edit{background:#2b2b30;border-color:rgb(255 255 255 / 10%);',
-  'color:rgb(255 255 255 / 85%);box-shadow:0 4px 16px rgb(0 0 0 / 45%)}}',
-  '@media (prefers-color-scheme:dark){.dshca-bar-edit:hover{background:#3d3d45}}',
+  '.dshca-bar-remove{display:inline-flex;align-items:center;justify-content:center;color:var(--dsw-alias-label-secondary,inherit);cursor:pointer;background:0 0;border:none;',
+  'border-radius:6px;flex:none;width:24px;height:24px;font-size:14px;line-height:1}',
+  '.dshca-bar-remove:hover{background:var(--dsw-alias-bg-hover,rgba(127,127,127,.16));color:var(--dsw-alias-label-primary,inherit)}',
+  // 面板脚注：收集计数 + 「编辑 (n)」入口。
+  '.dshca-panel-foot{display:flex;align-items:center;gap:8px;flex:none;height:28px;padding:0 6px;',
+  'font-size:12px;color:var(--dsw-alias-label-secondary,inherit)}',
+  '.dshca-bar-edit{margin-left:auto;border:1px solid var(--dsw-alias-border-l4,rgba(127,127,127,.25));',
+  'border-radius:6px;background:transparent;color:var(--dsw-alias-label-primary,inherit);',
+  'font:inherit;font-size:12px;line-height:18px;padding:2px 10px;cursor:pointer;white-space:nowrap}',
+  '.dshca-bar-edit:hover{background:var(--dsw-alias-bg-hover,rgba(127,127,127,.12))}',
+  '.dshca-bar-edit:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary,currentColor));outline-offset:1px}',
+  // 轻提示（toast）：中性深底浮层，只用于「没有找到输入框」等短反馈。
   '.dshca-toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:70;',
-  'padding:6px 14px;border-radius:8px;background:rgb(30 30 30 / 92%);color:#fff;font-size:12px;pointer-events:none}',
+  'padding:6px 14px;border-radius:8px;background:var(--dsw-alias-tooltip-background,rgb(48 48 54 / 94%));',
+  'color:var(--dsw-alias-label-on-accent,#fff);font-size:12px;pointer-events:none}',
 ].join('')
 
 /** 「添加到会话」按钮的加号图标（描边风格，颜色随文字）。 */
@@ -423,13 +415,9 @@ export function startSelectionActions(options: {
   root.style.display = 'none'
   document.body.appendChild(root)
 
-  // 多选浮动条：每条独立浮在会话区域顶部（宽取会话区域一半、纵向堆叠
-  // 间距 2px），条上有预览与移除钮；小「编辑 (n)」钮压在最后一条右下
-  // 方（间距 5px），点了进编辑卡。
+  // 多选收集面板：**单一容器**浮在会话区域顶部（宽取会话区域一半），条目
+  // 纵向堆叠、超过限高内部滚动；脚注一行是「已收集 n 段」计数与「编辑 (n)」。
   const BAR_TOP_GAP = 8
-  const BAR_HEIGHT = 28
-  const BAR_GAP = 2
-  const EDIT_GAP = 5
   const LEFT_PAD = 16
   const multiBarEls: HTMLElement[] = []
   const removeMultiBars = (): void => {
@@ -450,14 +438,16 @@ export function startSelectionActions(options: {
     const rect = scroller.getBoundingClientRect()
     const left = rect.left + LEFT_PAD
     const width = Math.max((rect.width - LEFT_PAD * 2) / 2, 240)
-    const barTop = (index: number): number => rect.top + BAR_TOP_GAP + index * (BAR_HEIGHT + BAR_GAP)
-    for (const [index, item] of items.entries()) {
+    const panel = document.createElement('div')
+    panel.className = 'dshca-panel'
+    panel.dataset.dshcaPanel = ''
+    panel.style.left = `${left}px`
+    panel.style.top = `${rect.top + BAR_TOP_GAP}px`
+    panel.style.width = `${width}px`
+    for (const item of items) {
       const bar = document.createElement('div')
       bar.className = 'dshca-bar'
       bar.dataset.dshcaBar = ''
-      bar.style.left = `${left}px`
-      bar.style.top = `${barTop(index)}px`
-      bar.style.width = `${width}px`
       const dot = document.createElement('span')
       dot.className = 'dshca-bar-dot'
       dot.setAttribute('aria-hidden', 'true')
@@ -475,10 +465,12 @@ export function startSelectionActions(options: {
       remove.textContent = '×'
       remove.addEventListener('click', () => { removeMultiItem(item.id) })
       bar.append(dot, preview, remove)
-      document.body.appendChild(bar)
-      multiBarEls.push(bar)
+      panel.append(bar)
     }
-    // 小编辑钮：最后一条的右下方（间距 5px），右缘与最后一条对齐。
+    const foot = document.createElement('div')
+    foot.className = 'dshca-panel-foot'
+    const count = document.createElement('span')
+    count.textContent = options.t('selection.collectedCount', { count: String(items.length) })
     const edit = document.createElement('button')
     edit.type = 'button'
     edit.className = 'dshca-bar-edit'
@@ -487,10 +479,10 @@ export function startSelectionActions(options: {
     edit.addEventListener('click', () => {
       openSelectionEdit(joinMultiTexts(getMultiItems()), true, options.currentSessionKey?.())
     })
-    document.body.appendChild(edit)
-    edit.style.top = `${barTop(items.length) + EDIT_GAP}px`
-    edit.style.right = `${window.innerWidth - (left + width)}px`
-    multiBarEls.push(edit)
+    foot.append(count, edit)
+    panel.append(foot)
+    document.body.appendChild(panel)
+    multiBarEls.push(panel)
   }
   rebuildPanel()
   const unsubscribeChip = subscribeMultiItems(rebuildPanel)

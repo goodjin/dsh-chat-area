@@ -33,6 +33,7 @@ export type ChatPowerLocaleKey =
   | 'markdownTurn.commentRemove' | 'markdownTurn.composePlaceholder' | 'markdownTurn.sendFailed'
   | 'markdownTurn.newSession' | 'markdownTurn.newSessionPromptHeader' | 'markdownTurn.newSessionFailed'
   | 'markdownTurn.copyFailed' | 'markdownTurn.filesAll' | 'markdownTurn.filesAllAria'
+  | 'markdownTurn.filesGroup' | 'markdownTurn.commentsPending' | 'markdownTurn.sending'
   | 'markdownTurn.filesCollapseAria' | 'markdownTurn.openFile'
   | 'markdownTurn.localFileHeader' | 'markdownTurn.localFileTooLarge'
   | 'markdownTurn.copyAll'
@@ -41,6 +42,7 @@ export type ChatPowerLocaleKey =
   | 'selection.edit' | 'selection.multiAdd' | 'selection.editCount'
   | 'selection.removeItem'
   | 'selection.multiAdded' | 'selection.editTitle' | 'selection.multiEditTitle'
+  | 'selection.collectedCount'
   | 'tools.chat' | 'tools.files' | 'tools.browser' | 'tools.terminal'
   | 'tools.openLocalFile' | 'tools.more' | 'tools.linkOpenDefault'
   | 'fileTree.reference' | 'fileTree.editCopy'
@@ -99,6 +101,9 @@ export const zh: Record<ChatPowerLocaleKey, string> = {
   'markdownTurn.copyFailed': '复制失败，请重试',
   'markdownTurn.filesAll': '全部 {count} 个文件',
   'markdownTurn.filesAllAria': '展开全部 {count} 个文件',
+  'markdownTurn.filesGroup': '本轮文件 · {count}',
+  'markdownTurn.commentsPending': '待发送批注 · {count}',
+  'markdownTurn.sending': '发送中…',
   'markdownTurn.filesCollapseAria': '收起文件列表',
   'markdownTurn.openFile': '打开本机文件',
   'markdownTurn.localFileHeader': '以下为本机文件 {name} 的内容：',
@@ -117,6 +122,7 @@ export const zh: Record<ChatPowerLocaleKey, string> = {
   'selection.multiAdded': '已加入多选（{count}）',
   'selection.editTitle': '编辑选中内容',
   'selection.multiEditTitle': '编辑多选内容',
+  'selection.collectedCount': '已收集 {count} 段',
   'tools.chat': '会话',
   'tools.files': '工作区文件',
   'tools.browser': '浏览器',
@@ -182,6 +188,9 @@ export const en: Record<ChatPowerLocaleKey, string> = {
   'markdownTurn.copyFailed': 'Could not copy. Try again.',
   'markdownTurn.filesAll': 'All {count} files',
   'markdownTurn.filesAllAria': 'Show all {count} files',
+  'markdownTurn.filesGroup': 'Files in this turn · {count}',
+  'markdownTurn.commentsPending': 'Pending comments · {count}',
+  'markdownTurn.sending': 'Sending…',
   'markdownTurn.filesCollapseAria': 'Collapse the file list',
   'markdownTurn.openFile': 'Open a local file',
   'markdownTurn.localFileHeader': 'Below is the content of local file {name}:',
@@ -200,6 +209,7 @@ export const en: Record<ChatPowerLocaleKey, string> = {
   'selection.multiAdded': 'Added to multi-select ({count})',
   'selection.editTitle': 'Edit selected text',
   'selection.multiEditTitle': 'Edit multi-selected text',
+  'selection.collectedCount': '{count} collected',
   'tools.chat': 'Chat',
   'tools.files': 'Workspace files',
   'tools.browser': 'Browser',

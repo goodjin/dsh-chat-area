@@ -19,6 +19,7 @@ import { getFileState, setActiveFilePath, subscribeActiveFilePath, toggleFileEdi
 import type { MarkdownLabels } from '@deepseek-ai/dsh-client-ui-primitives'
 import { fallbackT, NAMESPACE } from './locales.ts'
 import type { RuntimeT } from './locales.ts'
+import { createSendController } from './send-actions.ts'
 import {
   MARKDOWN_READ_LINE_CAP,
   isMarkdownPath,
@@ -267,20 +268,20 @@ export function composeWithComments(source: string, comments: readonly { blockTe
  * 把文档原文按评论锚点切成有序片段：每段后跟着挂在该处的评论。
  * 评论锚点是它在原文里那段正文的纯文本（与 composeWithComments 同一套 indexOf 匹配），
  * 据此定位插入点，使评论渲染在所评段之后，而非堆在文档底部。
- * @returns 按原文顺序排列的 { text, comments } 片段；comments 为该片段正文之后的评论。
+ * @returns 按原文顺序排列的 { text, comments } 片段；comments 为该片段正文之后的评论（带原文锚点，供摘录展示）。
  */
-export function segmentWithComments(source: string, comments: readonly { id: number; blockText: string; comment: string }[]): { text: string; comments: { id: number; comment: string }[] }[] {
+export function segmentWithComments(source: string, comments: readonly { id: number; blockText: string; comment: string }[]): { text: string; comments: { id: number; blockText: string; comment: string }[] }[] {
   const marks = comments
     .filter(c => c.blockText !== '' && c.comment.trim() !== '')
-    .map(c => ({ offset: source.indexOf(c.blockText), len: c.blockText.length, id: c.id, comment: c.comment.trim() }))
+    .map(c => ({ offset: source.indexOf(c.blockText), len: c.blockText.length, id: c.id, blockText: c.blockText, comment: c.comment.trim() }))
     .filter(m => m.offset >= 0)
     .sort((a, b) => a.offset - b.offset)
-  const segments: { text: string; comments: { id: number; comment: string }[] }[] = []
+  const segments: { text: string; comments: { id: number; blockText: string; comment: string }[] }[] = []
   let cursor = 0
-  let bucket: { id: number; comment: string }[] = []
+  let bucket: { id: number; blockText: string; comment: string }[] = []
   for (const mark of marks){
     if (mark.offset < cursor) continue // 与已处理锚点重叠，跳过
-    bucket.push({ id: mark.id, comment: mark.comment })
+    bucket.push({ id: mark.id, blockText: mark.blockText, comment: mark.comment })
     segments.push({ text: source.slice(cursor, mark.offset + mark.len), comments: bucket })
     bucket = []
     cursor = mark.offset + mark.len
@@ -325,6 +326,21 @@ function MarkdownDocument({ sessionId, path, readers, t, onNotify }: {
     setToast({ seq: toastSeq.current, text: message, ok })
     onNotify?.(message)
   }
+  // 汇总发送（批注汇总 / compose 草稿）走统一控制器：空白禁用、在途防重复、
+  // **成功才清空批注与关闭 compose**；失败保留全部内容并提示。此前发送一发起
+  // 就 setComments([])，请求失败批注就丢了。
+  const [summaryPending, setSummaryPending] = useState(false)
+  const summaryController = useMemo(() => createSendController({
+    send: (text: string): Promise<void> => readers.sendToSession(sessionId, text),
+    onPendingChange: setSummaryPending,
+    onSuccess: () => {
+      setComments([])
+      setComposeOpen(false)
+      scrollComposerIntoView(barRef.current)
+    },
+    onFailure: () => { notify(t('markdownTurn.sendFailed')) },
+    // eslint 不在仓库门禁内；notify 每轮重建，但内部只动 ref 与 setState，闭包安全。
+  }), [sessionId, readers, t])
   const toggleOpen = (): void => {
     holdFileTop(barRef.current)
     if (!open) setActiveFilePath(path)
@@ -407,6 +423,8 @@ function MarkdownDocument({ sessionId, path, readers, t, onNotify }: {
     }
   }, [open, sessionId, path, readers, attempt])
   const toggleLabel = t(open ? 'markdownTurn.collapseAria' : 'markdownTurn.expandAria', { name: path })
+  const fileName = path.split('/').at(-1) ?? path
+  const fileDir = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : ''
   return <section className={css.document} data-markdown-path={path}>
     <div ref={barRef} className={css.bar} data-path-bar="" {...(open ? { 'data-expanded': '' } : {})}>
       <span className={css.icon} data-file-icon={classifyFileType(path)}>
@@ -422,7 +440,10 @@ function MarkdownDocument({ sessionId, path, readers, t, onNotify }: {
           board.setData('text/plain', path)
           event.preventDefault()
         }}
-      >{path}</span>
+      >
+        <span className={css.nameMain}>{fileName}</span>
+        {fileDir !== '' && <span className={css.nameDir}>{fileDir}</span>}
+      </span>
       {/* 编辑态：取消钮占住编辑钮的位置（同一枚图标按钮换掉图标），退出编辑
           不必再跑到正文下方的动作行里找取消。 */}
       {editing
@@ -546,7 +567,7 @@ function MarkdownDocument({ sessionId, path, readers, t, onNotify }: {
                     {seg.text !== '' && <MarkdownText text={seg.text} streaming={false} labels={labels} />}
                     {seg.comments.map(cm => (
                       <blockquote key={cm.id} className={css.comment} data-comment-flow="">
-                        <span className={css.commentMark}>{t('markdownTurn.commentedAs')}</span>
+                        <span className={css.commentMark} title={cm.blockText}>{cm.blockText}</span>
                         <span className={css.commentText}>{cm.comment}</span>
                         <button type="button" className={css.commentRemove} data-comment-remove="" aria-label={t('markdownTurn.commentRemove')} onClick={() => setComments(cur => cur.filter(x => x.id !== cm.id))}>×</button>
                       </blockquote>
@@ -592,22 +613,24 @@ function MarkdownDocument({ sessionId, path, readers, t, onNotify }: {
         )}
         {comments.length > 0 && (
           <div className={css.commentList} data-comments="">
-            <button type="button" className={css.sendBtn} data-comments-send="" onClick={() => { sendText(composeWithComments(body.text, comments)); setComments([]) }}>
-              <IconSendOutlineRegular size={15} /> {t('markdownTurn.send')}
-            </button>
+            <div className={css.commentSummary}>
+              <span>{t('markdownTurn.commentsPending', { count: String(comments.length) })}</span>
+              <button type="button" className={css.sendBtn} data-comments-send="" disabled={summaryPending}
+                onClick={() => { summaryController.submit(composeWithComments(body.text, comments)) }}>
+                <IconSendOutlineRegular size={15} /> {summaryPending ? t('markdownTurn.sending') : t('markdownTurn.send')}
+              </button>
+            </div>
           </div>
         )}
         {composeOpen && (
           <div className={css.composeBox} data-compose-box="">
             <textarea className={css.composeInput} data-compose-input="" placeholder={t('markdownTurn.composePlaceholder')} rows={3} defaultValue={selBar?.text ?? ''} />
             <div className={css.composeActions}>
-              <button type="button" className={css.sendBtn} data-compose-send="" onClick={() => {
+              <button type="button" className={css.sendBtn} data-compose-send="" disabled={summaryPending} onClick={() => {
                 const ta = bodyRef.current?.querySelector('[data-compose-input]') as HTMLTextAreaElement | null
-                sendText(ta?.value ?? '')
-                setComposeOpen(false)
-                scrollComposerIntoView(barRef.current)
+                summaryController.submit(ta?.value ?? '')
               }}>
-                <IconSendOutlineRegular size={15} /> {t('markdownTurn.send')}
+                <IconSendOutlineRegular size={15} /> {summaryPending ? t('markdownTurn.sending') : t('markdownTurn.send')}
               </button>
             </div>
           </div>
@@ -676,6 +699,9 @@ export function MarkdownTurnTail({ sessionId, turn, t, readers, onNotify }: Mark
     setListOpen(value => !value)
   }
   return <div ref={rootRef} className={css.root} data-markdown-turn="" {...(folded ? { 'data-markdown-folded': '' } : {})}>
+    <div className={css.groupHead} data-files-group="">
+      <span className={css.groupTitle}>{translate('markdownTurn.filesGroup', { count: String(paths.length) })}</span>
+    </div>
     {shown.map(path => <MarkdownDocument key={path} sessionId={id} path={path} readers={readers} t={translate} {...(onNotify === undefined ? {} : { onNotify })} />)}
     {paths.length > FOLDED_FILE_COUNT && <div className={css.edge}>
       <ExpandButton open={listOpen} label={listLabel} caption={listCount} onClick={toggleList} kind="more" />

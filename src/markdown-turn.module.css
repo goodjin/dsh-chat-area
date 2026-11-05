@@ -5,44 +5,38 @@
   margin: 8px 0;
 }
 
-/* 本机文件卡的头部行（展开态）：文件名 + 收起 / 关闭，压在编辑区上方一条。 */
-.localHead {
+/* 文件组标题：「本轮文件 · n」。 */
+.groupHead {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 8px 4px 12px;
-  border-block-end: 1px solid var(--dsw-alias-border-l1, rgb(0 0 0 / 8%));
+  padding: 0 2px;
 }
 
-.localName {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
+.groupTitle {
   font-size: 12px;
   font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: text;
-  -webkit-user-select: text;
-  user-select: text;
+  color: var(--dsw-alias-label-secondary, inherit);
 }
+
+/* 本机文件卡的收起标题条与文件卡头部共用这一套条/名/图标钮样式；
+   编辑态已改走 ComposeCard 统一外壳（ui-theme）。 */
 
 .document {
   min-width: 0;
-  border: 1px solid rgb(0 0 0 / 12%);
+  border: 1px solid var(--dsw-alias-border-l1, rgba(127, 127, 127, 0.15));
   border-radius: 8px;
-  background: rgb(0 0 0 / 3%);
+  background: var(--dsw-alias-settings-card-fill, transparent);
 }
 
 .bar {
   display: flex;
   align-items: center;
-  background: rgb(0 0 0 / 6%);
+  background: var(--dsw-alias-bg-hover, rgba(127, 127, 127, 0.06));
   border-radius: 7px;
 }
 
 .bar[data-expanded] {
-  border-bottom: 1px solid rgb(0 0 0 / 14%);
+  border-bottom: 1px solid var(--dsw-alias-border-l1, rgba(127, 127, 127, 0.12));
   border-radius: 7px 7px 0 0;
 }
 
@@ -65,12 +59,23 @@
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: rgb(0 0 0 / 62%);
+  color: var(--dsw-alias-label-secondary, inherit);
   cursor: pointer;
 }
 
 .iconButton:hover {
-  background: rgb(0 0 0 / 6%);
+  background: var(--dsw-alias-bg-hover, rgba(127, 127, 127, 0.12));
+  color: var(--dsw-alias-label-primary, inherit);
+}
+
+.iconButton:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary, var(--dsw-alias-brand-primary, currentColor));
+  outline-offset: 1px;
+}
+
+.iconButton:disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 
 .withCount {
@@ -85,8 +90,8 @@
 .foot {
   display: flex;
   justify-content: flex-end;
-  background: rgb(0 0 0 / 6%);
-  border-top: 1px solid rgb(0 0 0 / 14%);
+  background: var(--dsw-alias-bg-hover, rgba(127, 127, 127, 0.06));
+  border-top: 1px solid var(--dsw-alias-border-l1, rgba(127, 127, 127, 0.12));
   border-radius: 0 0 7px 7px;
 }
 
@@ -95,21 +100,34 @@
   justify-content: flex-start;
 }
 
+/* 文件名主行 + 目录辅助行：长路径不再挤占按钮，完整路径在 tooltip 里。 */
 .name {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
-  padding: 8px;
+  padding: 6px 8px;
+  overflow: hidden;
+  line-height: 16px;
+  cursor: text;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.nameMain {
   overflow: hidden;
   font-size: 12.5px;
   font-weight: 600;
-  line-height: 18px;
   text-overflow: ellipsis;
   white-space: nowrap;
-  cursor: text;
-  -webkit-user-select: text;
-  -webkit-user-select: all;
-  user-select: text;
-  user-select: all;
+}
+
+.nameDir {
+  overflow: hidden;
+  font-size: 11px;
+  color: var(--dsw-alias-label-secondary, inherit);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .body {
@@ -124,12 +142,12 @@
 
 /* 正文块 hover 高亮（只作用块本身，不波及链接等内联）。 */
 .body :where(h1, h2, h3, h4, h5, h6, p, li, blockquote):hover {
-  background: rgb(0 0 0 / 4%);
+  background: var(--dsw-alias-bg-hover, rgba(127, 127, 127, 0.05));
   border-radius: 4px;
 }
 
-/* 行内工具条：body hover 时浮出。去掉厚卡片底衬，做成和 dsh 原生代码块工具条
-   一致的轻量图标按钮组（透明底 + 细微描边），让两者看起来是同一行、不重复。 */
+/* 行内工具条：body hover 时浮出。轻量图标按钮组（透明底），与 dsh 原生
+   代码块工具条同一观感。 */
 .lineTools {
   position: absolute;
   top: 6px;
@@ -159,15 +177,16 @@
   border: none;
   border-radius: 4px;
   background: transparent;
-  color: rgb(0 0 0 / 70%);
+  color: var(--dsw-alias-label-secondary, inherit);
   cursor: pointer;
 }
 
 .lineTool:hover {
-  background: rgb(0 0 0 / 8%);
+  background: var(--dsw-alias-bg-hover, rgba(127, 127, 127, 0.12));
+  color: var(--dsw-alias-label-primary, inherit);
 }
 
-/* 选中文本操作条。 */
+/* 选中文本操作条：统一浮层材质（宿主 token），阴影只给浮层。 */
 .selBar {
   position: absolute;
   top: 8px;
@@ -179,7 +198,8 @@
   max-width: calc(100% - 16px);
   padding: 6px;
   border-radius: 8px;
-  background: rgb(255 255 255 / 95%);
+  background: var(--dsw-alias-bg-container, rgb(255 255 255 / 96%));
+  border: 1px solid var(--dsw-alias-border-l2, rgba(127, 127, 127, 0.2));
   box-shadow: 0 1px 6px rgb(0 0 0 / 15%);
 }
 
@@ -187,7 +207,7 @@
   padding: 4px 10px;
   border: none;
   border-radius: 6px;
-  background: rgb(0 0 0 / 6%);
+  background: var(--dsw-alias-bg-hover, rgba(127, 127, 127, 0.1));
   color: inherit;
   font: inherit;
   font-size: 12px;
@@ -195,7 +215,12 @@
 }
 
 .selBtn:hover {
-  background: rgb(0 0 0 / 10%);
+  background: var(--dsw-alias-interactive-bg-hover, rgba(127, 127, 127, 0.16));
+}
+
+.selBtn:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary, var(--dsw-alias-brand-primary, currentColor));
+  outline-offset: 1px;
 }
 
 .commentBox {
@@ -210,8 +235,10 @@
   resize: vertical;
   font: inherit;
   padding: 8px;
-  border: 1px solid rgb(0 0 0 / 15%);
+  border: 1px solid var(--dsw-alias-border-l2, rgba(127, 127, 127, 0.2));
   border-radius: 6px;
+  background: var(--dsw-specific-input-major, transparent);
+  color: var(--dsw-alias-label-primary, inherit);
 }
 
 .commentActions {
@@ -226,16 +253,33 @@
   margin-top: 8px;
 }
 
+/* 批注汇总行：「待发送批注 · n」+ 发送钮；发送中禁用并改文案。 */
+.commentSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary, inherit);
+}
+
 .comment {
   position: relative;
   margin: 0;
-  padding: 8px 12px;
+  padding: 8px 32px 8px 12px;
+  background: var(--dsw-alias-bg-hover, rgba(127, 127, 127, 0.06));
+  border-left: 2px solid var(--dsw-alias-state-business-primary, rgba(127, 127, 127, 0.4));
+  border-radius: 6px;
 }
 
+/* 原文摘录（两行封顶）+ 评论正文。 */
 .commentMark {
-  display: block;
+  display: -webkit-box;
+  overflow: hidden;
   font-size: 12px;
-  opacity: 0.7;
+  color: var(--dsw-alias-label-secondary, inherit);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .commentText {
@@ -244,14 +288,25 @@
 
 .commentRemove {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
   border: none;
+  border-radius: 6px;
   background: none;
-  color: inherit;
+  color: var(--dsw-alias-label-secondary, inherit);
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
+}
+
+.commentRemove:hover {
+  background: var(--dsw-alias-bg-hover, rgba(127, 127, 127, 0.12));
+  color: var(--dsw-alias-label-primary, inherit);
 }
 
 /* 编辑卡片：仿输入框（composer）的组合条——细描边圆角卡，输入区无边框，
@@ -259,15 +314,15 @@
 .editCard {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 15%));
+  border: 1px solid var(--dsw-alias-border-l2, rgba(127, 127, 127, 0.2));
   border-radius: var(--dsw-radius-panel, 12px);
-  background: var(--dsw-specific-input-major, rgb(0 0 0 / 2%));
+  background: var(--dsw-specific-input-major, transparent);
   transition: border-color 120ms;
   overflow: hidden;
 }
 
 .editCard:focus-within {
-  border-color: var(--dsw-alias-state-business-primary, var(--dsw-alias-brand-primary, rgb(0 0 0 / 40%)));
+  border-color: var(--dsw-alias-state-business-primary, var(--dsw-alias-brand-primary, rgba(127, 127, 127, 0.4)));
 }
 
 .composeBox {
@@ -294,9 +349,10 @@
   resize: vertical;
   font: inherit;
   padding: 8px;
-  border: 1px solid rgb(0 0 0 / 15%);
+  border: 1px solid var(--dsw-alias-border-l2, rgba(127, 127, 127, 0.2));
   border-radius: 6px;
-  background: rgb(0 0 0 / 2%);
+  background: var(--dsw-specific-input-major, transparent);
+  color: var(--dsw-alias-label-primary, inherit);
 }
 
 .composeActions {
@@ -312,7 +368,7 @@
   align-items: center;
   gap: 12px;
   padding: 6px 10px 6px 12px;
-  border-block-start: 1px solid var(--dsw-alias-border-l1, rgb(0 0 0 / 8%));
+  border-block-start: 1px solid var(--dsw-alias-border-l1, rgba(127, 127, 127, 0.12));
 }
 
 /* 新建会话：胶囊文字按钮，与发送钮之间留大间距（行 gap 12 + 自身 margin 14），防误点。 */
@@ -322,7 +378,7 @@
   gap: 4px;
   margin-right: 14px;
   padding: 4px 12px;
-  border: 1px solid var(--dsw-alias-border-l4, rgb(0 0 0 / 20%));
+  border: 1px solid var(--dsw-alias-border-l4, rgba(127, 127, 127, 0.25));
   border-radius: 999px;
   background: transparent;
   color: inherit;
@@ -332,7 +388,7 @@
 }
 
 .editNewSession:hover {
-  background: var(--dsw-alias-interactive-bg-hover, rgb(0 0 0 / 6%));
+  background: var(--dsw-alias-interactive-bg-hover, rgba(127, 127, 127, 0.12));
 }
 
 /* 发送：与输入框发送钮同款——34px 圆形，常态铺品牌色 + 反白图标，
@@ -346,14 +402,14 @@
   padding: 0;
   border: none;
   border-radius: 999px;
-  background: var(--dsw-alias-button-info-fill, rgb(0 0 0 / 30%));
-  color: #fff;
+  background: var(--dsw-alias-button-info-fill, rgba(127, 127, 127, 0.3));
+  color: var(--dsw-alias-label-on-accent, #fff);
   cursor: pointer;
   transition: background-color 100ms;
 }
 
 .editSend:hover {
-  background: var(--dsw-alias-button-info-hover, rgb(0 0 0 / 45%));
+  background: var(--dsw-alias-button-info-hover, rgba(127, 127, 127, 0.45));
 }
 
 .sendBtn {
@@ -363,7 +419,7 @@
   padding: 4px 12px;
   border: 1px solid transparent;
   border-radius: 6px;
-  background: var(--dsw-alias-interactive-bg-hover, rgb(0 0 0 / 6%));
+  background: var(--dsw-alias-interactive-bg-hover, rgba(127, 127, 127, 0.1));
   color: inherit;
   font: inherit;
   font-size: 12px;
@@ -371,25 +427,23 @@
 }
 
 .sendBtn:hover {
-  background: var(--dsw-alias-brand-primary, rgb(0 0 0 / 10%));
-  color: var(--dsw-alias-label-on-accent, inherit);
+  background: var(--dsw-alias-bg-hover, rgba(127, 127, 127, 0.16));
 }
 
-@media (prefers-color-scheme: dark) {
-  .composeInput {
-    border-color: rgb(255 255 255 / 18%);
-    background: rgb(255 255 255 / 4%);
-  }
+.sendBtn:disabled {
+  cursor: default;
+  opacity: 0.6;
 }
 
 .status {
   margin: 0;
   font-size: 12px;
-  color: rgb(0 0 0 / 55%);
+  color: var(--dsw-alias-label-secondary, inherit);
 }
 
 .statusDetail {
-  color: rgb(0 0 0 / 45%);
+  color: var(--dsw-alias-label-secondary, inherit);
+  opacity: 0.85;
 }
 
 .retry {
@@ -403,73 +457,6 @@
   cursor: pointer;
 }
 
-@media (prefers-color-scheme: dark) {
-  .document {
-    border-color: rgb(255 255 255 / 16%);
-    background: rgb(255 255 255 / 4%);
-  }
-
-  .bar {
-    background: rgb(255 255 255 / 8%);
-  }
-
-  .bar[data-expanded] {
-    border-bottom-color: rgb(255 255 255 / 16%);
-  }
-
-  .iconButton {
-    color: rgb(255 255 255 / 70%);
-  }
-
-  .iconButton:hover {
-    background: rgb(255 255 255 / 8%);
-  }
-
-
-  .foot {
-    background: rgb(255 255 255 / 8%);
-    border-top-color: rgb(255 255 255 / 16%);
-  }
-
-  .status {
-    color: rgb(255 255 255 / 55%);
-  }
-
-  .body :where(h1, h2, h3, h4, h5, h6, p, li, blockquote):hover {
-    background: rgb(255 255 255 / 6%);
-  }
-
-  .lineTools {
-    background: rgb(30 30 30 / 85%);
-  }
-
-  .lineTool {
-    color: rgb(255 255 255 / 80%);
-  }
-
-  .lineTool:hover {
-    background: rgb(255 255 255 / 10%);
-  }
-
-  .selBar {
-    background: rgb(30 30 30 / 95%);
-  }
-
-  .selBtn {
-    background: rgb(255 255 255 / 8%);
-  }
-
-  .selBtn:hover {
-    background: rgb(255 255 255 / 12%);
-  }
-
-  .commentInput,
-  .composeInput {
-    border-color: rgb(255 255 255 / 18%);
-    background: rgb(255 255 255 / 4%);
-  }
-}
-
 /* 和右侧文档预览标题栏同一只分体按钮：24px 描边胶囊，主按钮加窄箭头。 */
 .openMenu {
   display: inline-flex;
@@ -478,19 +465,14 @@
   margin-right: 4px;
 }
 
-/* 文件列表顶部的共享文件操作栏：左显当前作用文件，右接打开方式分体按钮。
-   所有文件操作停在这一条，不必再去右侧预览。 */
-
-
-
 .openSplit {
   display: inline-flex;
   align-items: stretch;
   box-sizing: border-box;
   height: 24px;
   overflow: hidden;
-  border: 0.5px solid var(--dsw-alias-border-l4);
-  border-radius: var(--dsw-radius-sm);
+  border: 0.5px solid var(--dsw-alias-border-l4, rgba(127, 127, 127, 0.25));
+  border-radius: var(--dsw-radius-sm, 4px);
   font-family: var(--dsw-font-family);
 }
 
@@ -501,7 +483,7 @@
   justify-content: center;
   border: 0;
   background: none;
-  color: var(--dsw-alias-label-primary);
+  color: var(--dsw-alias-label-primary, inherit);
   font-size: 11px;
   line-height: 16px;
   white-space: nowrap;
@@ -515,15 +497,15 @@
 
 .openChevron {
   padding: 3px 4px 3px 3px;
-  border-left: 0.5px solid var(--dsw-alias-border-l4);
-  color: var(--dsw-alias-label-secondary);
+  border-left: 0.5px solid var(--dsw-alias-border-l4, rgba(127, 127, 127, 0.25));
+  color: var(--dsw-alias-label-secondary, inherit);
 }
 
 .openMain:hover:not(:disabled),
 .openMain:focus-visible,
 .openChevron:hover:not(:disabled),
 .openChevron:focus-visible {
-  background: var(--dsw-alias-interactive-bg-hover);
+  background: var(--dsw-alias-interactive-bg-hover, rgba(127, 127, 127, 0.12));
 }
 
 .openMain:disabled,
@@ -540,27 +522,9 @@
   flex: none;
   width: 13px;
   height: 13px;
-  border-radius: var(--dsw-radius-xs);
-  background: var(--dsw-alias-interactive-bg-hover);
+  border-radius: var(--dsw-radius-xs, 2px);
+  background: var(--dsw-alias-interactive-bg-hover, rgba(127, 127, 127, 0.2));
 }
-
-/* 工具标签里的纯编辑卡：编辑框下方两个文字按钮（发送到会话 / 新建会话）。 */
-.tabSend,
-.tabNewSession {  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid var(--dsw-alias-border-l1, rgb(0 0 0 / 12%));
-  border-radius: 8px;
-  background: transparent;
-  color: inherit;
-  font-size: 12px;
-  padding: 5px 12px;
-  cursor: pointer;
-}
-.tabSend:hover,
-.tabNewSession:hover { background: var(--ds-bg-hover, rgb(136 136 136 / 20%)); }
-.tabSend[data-local-send] { background: var(--dsw-alias-brand-l1, #4d6bfe); border-color: transparent; color: #fff; }
-.tabSend[data-local-send]:hover { background: var(--dsw-alias-brand-l2, #6b82ff); }
 
 /* 选区编辑卡：fixed 覆盖宿主（纵向 flex），ComposeCard 外壳撑满覆盖层。 */
 .coverHost {
