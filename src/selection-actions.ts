@@ -25,20 +25,39 @@ export const SELECTION_SHOW_DELAY_MS = 1000
 
 /** 弹条与提示的样式；类名带 dshca- 前缀避免与页面样式冲突。 */
 const BAR_CSS = [
-  '.dshca-selbar{position:fixed;z-index:60;display:flex;gap:2px;padding:2px;',
-  'border-radius:8px;background:rgb(30 30 30 / 88%);box-shadow:0 2px 8px rgb(0 0 0 / 25%)}',
-  // 尖角：默认在弹条下方（朝下指向选区）；data-arrow="up" 时翻到上方。
-  // 水平位置由 JS 写入 --dshca-arrow-x（对准选区行的中心）。
-  '.dshca-selbar::after{content:"";position:absolute;bottom:-6px;left:var(--dshca-arrow-x,16px);',
-  'margin-left:-6px;border:6px solid transparent;border-top-color:rgb(30 30 30 / 88%);border-bottom:0}',
-  '.dshca-selbar[data-arrow="up"]::after{bottom:auto;top:-6px;',
-  'border-top:0;border-bottom:6px solid rgb(30 30 30 / 88%)}',
-  '.dshca-selbar button{border:none;background:transparent;color:rgb(255 255 255 / 92%);',
-  'font:inherit;font-size:12px;line-height:18px;padding:4px 10px;border-radius:6px;cursor:pointer;white-space:nowrap}',
-  '.dshca-selbar button:hover{background:rgb(255 255 255 / 14%)}',
+  // 卡片：白底圆角、轻描边、柔和投影；暗色主题换深色浮层材质。
+  '.dshca-selbar{position:fixed;z-index:60;display:flex;align-items:center;gap:2px;padding:4px;',
+  'border-radius:10px;background:#fff;border:1px solid rgb(0 0 0 / 8%);box-shadow:0 4px 16px rgb(0 0 0 / 16%)}',
+  '@media (prefers-color-scheme:dark){.dshca-selbar{background:#2b2b30;border-color:rgb(255 255 255 / 10%);',
+  'box-shadow:0 4px 16px rgb(0 0 0 / 45%)}}',
+  // 尖角：默认在弹条下方（朝下指向选区）；data-arrow="up" 时翻到上方，
+  // 材质与卡片一致。水平位置由 JS 写入 --dshca-arrow-x。
+  '.dshca-selbar::after{content:"";position:absolute;bottom:-5px;left:var(--dshca-arrow-x,16px);',
+  'margin-left:-5px;border:5px solid transparent;border-top-color:#fff;border-bottom:0}',
+  '@media (prefers-color-scheme:dark){.dshca-selbar::after{border-top-color:#2b2b30}}',
+  '.dshca-selbar[data-arrow="up"]::after{bottom:auto;top:-5px;',
+  'border-top:0;border-bottom:5px solid #fff}',
+  '@media (prefers-color-scheme:dark){.dshca-selbar[data-arrow="up"]::after{border-bottom-color:#2b2b30}}',
+  // 按钮：图标 + 文字，浅色字，hover 铺一层淡底。
+  '.dshca-selbar button{display:inline-flex;align-items:center;gap:6px;border:none;background:transparent;',
+  'color:rgb(0 0 0 / 78%);font:inherit;font-size:12.5px;line-height:18px;padding:5px 12px;',
+  'border-radius:7px;cursor:pointer;white-space:nowrap}',
+  '.dshca-selbar button svg{flex:none}',
+  '.dshca-selbar button:hover{background:rgb(0 0 0 / 6%)}',
+  '@media (prefers-color-scheme:dark){.dshca-selbar button{color:rgb(255 255 255 / 85%)}',
+  '.dshca-selbar button:hover{background:rgb(255 255 255 / 10%)}}',
+  // 两个按钮之间的细分隔线。
+  '.dshca-selbar .dshca-divider{width:1px;height:16px;flex:none;background:rgb(0 0 0 / 10%)}',
+  '@media (prefers-color-scheme:dark){.dshca-selbar .dshca-divider{background:rgb(255 255 255 / 12%)}}',
   '.dshca-toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:70;',
   'padding:6px 14px;border-radius:8px;background:rgb(30 30 30 / 92%);color:#fff;font-size:12px;pointer-events:none}',
 ].join('')
+
+/** 「添加到会话」按钮的加号图标（描边风格，颜色随文字）。 */
+const ICON_PLUS = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
+
+/** 「发送会话」按钮的纸飞机图标（描边风格，颜色随文字）。 */
+const ICON_SEND = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M14 2 7.7 8.3M14 2 9.8 14l-2.1-5.7L2 6.2 14 2Z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>'
 
 /** 选区锚点要满足的结构面（Element 的最小子集，便于测试）。 */
 export interface SelectionAnchor {
@@ -119,15 +138,25 @@ export function startSelectionActions(options: { readers: MarkdownTurnReaders; t
   const root = document.createElement('div')
   root.className = 'dshca-selbar'
   root.dataset.dshcaSelbar = ''
-  const fillButton = document.createElement('button')
-  fillButton.type = 'button'
-  fillButton.dataset.action = 'add-to-chat'
-  fillButton.textContent = options.t('selection.addToChat')
-  const sendButton = document.createElement('button')
-  sendButton.type = 'button'
-  sendButton.dataset.action = 'send-to-chat'
-  sendButton.textContent = options.t('selection.sendToChat')
-  root.append(fillButton, sendButton)
+  const labeledButton = (action: string, icon: string, label: string): HTMLButtonElement => {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.dataset.action = action
+    button.setAttribute('aria-label', label)
+    const iconSpan = document.createElement('span')
+    iconSpan.style.display = 'inline-flex'
+    iconSpan.innerHTML = icon
+    const labelSpan = document.createElement('span')
+    labelSpan.textContent = label
+    button.append(iconSpan, labelSpan)
+    return button
+  }
+  const fillButton = labeledButton('add-to-chat', ICON_PLUS, options.t('selection.addToChat'))
+  const divider = document.createElement('span')
+  divider.className = 'dshca-divider'
+  divider.setAttribute('aria-hidden', 'true')
+  const sendButton = labeledButton('send-to-chat', ICON_SEND, options.t('selection.sendToChat'))
+  root.append(fillButton, divider, sendButton)
   root.style.display = 'none'
   document.body.appendChild(root)
 
