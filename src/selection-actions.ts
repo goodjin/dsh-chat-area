@@ -440,6 +440,9 @@ export function startSelectionActions(options: {
     removeMultiBars()
     const items = getMultiItems()
     if (items.length === 0) return
+    // 编辑卡打开中（多选模式）：浮动条让位给占满会话区域的编辑卡。
+    const editing = getSelectionEdit()
+    if (editing !== null && editing.multi) return
     // 会话绑定：浮动条只出现在收藏归属的那个会话视图里。
     if (!boundToActiveSession(multiSessionId, options.currentSessionKey?.())) return
     const scroller = document.querySelector('[data-conversation-scroll]')
@@ -491,6 +494,7 @@ export function startSelectionActions(options: {
   }
   rebuildPanel()
   const unsubscribeChip = subscribeMultiItems(rebuildPanel)
+  const unsubscribeEdit = subscribeSelectionEdit(rebuildPanel)
 
   let showTimer = 0
   const hide = (): void => {
@@ -637,6 +641,7 @@ export function startSelectionActions(options: {
     window.removeEventListener('resize', onResize)
     unsubscribeSessionKey?.()
     unsubscribeChip()
+    unsubscribeEdit()
     removeMultiBars()
     document.removeEventListener('selectionchange', onSelectionChange)
     document.removeEventListener('mousedown', onMouseDown, true)
