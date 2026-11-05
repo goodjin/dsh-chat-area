@@ -1,26 +1,30 @@
 /**
  * 选区编辑卡：弹条「编辑」/ 多选浮动「编辑」钮打开的编辑框。
  *
- * 展示形态（2026-11-05 用户要求）：**占满整个会话区域**——卡片用 fixed
+ * 展示形态（2026-11-05 用户要求）：**占满整个会话区域**——外层用 fixed
  * 定位覆盖 `[data-conversation-scroll]` 的客户区（含 16px 内边距），不随
  * 消息滚动移动；窗口尺寸变化时重新对位。高度天然远超 10 行的下限。
+ * 内部走 ComposeCard 统一外壳（标题、发送副本说明、头部取消、底部动作行）。
  *
  * 文本来自 selection-actions.ts 的编辑卡 store：
  * - 单选编辑：初始为选中的文字，关闭/发送不影响多选收藏；
  * - 多选编辑：初始为收藏按原顺序、项间空行拼接的全文，关闭/发送后
  *   连同收藏与高亮一起清掉。
  *
- * 动作行与编辑卡一致——描边「新建会话」（新会话继承当前会话的工作目录）
- * + 圆形发送钮；头部右侧关闭钮退出编辑。
+ * 发送走统一控制器：空白禁用、在途防重复、成功才关卡；失败保留正文并在
+ * 编辑器下方提示（此前无 pending 保护，连点会重复发送）。
  */
-import { useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
-import { IconCloseOutlineRegular, IconNewChatOutlineRegular, IconSendOutlineRegular, IconWarningOutlineRegular, Toast } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconWarningOutlineRegular, Toast } from '@deepseek-ai/dsh-client-ui-primitives'
 import { closeSelectionEdit, currentSessionIdFromDom, getSelectionEdit, selectionEditVisible, subscribeSelectionEdit } from './selection-actions.ts'
 import type { SelectionEditState } from './selection-actions.ts'
 import type { MarkdownTurnReaders } from './markdown-turn-sources.ts'
 import type { RuntimeT } from './locales.ts'
 import { NAMESPACE } from './locales.ts'
+import { ComposeCard } from './compose-card.tsx'
+import { createSendController } from './send-actions.ts'
+import { inputClass, statusNoticeClass } from './ui-theme.ts'
 import css from './markdown-turn.module.css'
 
 export const SELECTION_EDIT_ID = 'chat-power-selection-edit'
@@ -33,9 +37,15 @@ function SelectionEditCard(props: {
   readonly readers: MarkdownTurnReaders
   readonly t: RuntimeT
 }): ReactNode {
+  const [pending, setPending] = useState(false)
+  const [notice, setNotice] = useState<{ seq: number; text: string } | null>(null)
   const [toast, setToast] = useState<{ seq: number; text: string } | null>(null)
+  const [hasText, setHasText] = useState(props.state.text.trim() !== '')
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const coverRef = useRef<HTMLDivElement>(null)
+  const modeRef = useRef<'current' | 'new'>('current')
+  const propsRef = useRef(props)
+  propsRef.current = props
   const t = props.t
 
   // 覆盖层对位：占满会话滚动区域，但**下边界不越过 composer**（composerSeat
@@ -73,28 +83,32 @@ function SelectionEditCard(props: {
     }
   }, [])
 
-  const send = (toNew: boolean): void => {
-    const body = inputRef.current?.value ?? ''
-    if (body.trim() === '') return
-    // 发往打开编辑卡时所在的会话（记录在 state.sessionId），DOM 读法兜底。
-    const sessionId = props.state.sessionId ?? currentSessionIdFromDom()
-    if (sessionId === undefined) {
-      setToast({ seq: (toast?.seq ?? 0) + 1, text: t('markdownTurn.sendFailed') })
-      return
-    }
-    let sending: Promise<void>
-    if (toNew) {
-      // 新会话继承当前会话的工作目录（与本机文件卡的发送一致）。
-      sending = props.readers.createSession({ inheritCwdFrom: sessionId })
-        .then(newId => props.readers.sendToSession(newId, body))
-    } else {
-      sending = props.readers.sendToSession(sessionId, body)
-    }
-    void sending.then(() => {
-      closeSelectionEdit()
-    }, () => {
-      setToast({ seq: (toast?.seq ?? 0) + 1, text: t(toNew ? 'markdownTurn.newSessionFailed' : 'markdownTurn.sendFailed') })
-    })
+  const controller = useMemo(() => createSendController({
+    send: (body: string): Promise<void> => {
+      const current = propsRef.current
+      // 发往打开编辑卡时所在的会话（记录在 state.sessionId），DOM 读法兜底。
+      const sessionId = current.state.sessionId ?? currentSessionIdFromDom()
+      if (sessionId === undefined) return Promise.reject(new Error('sessionId unavailable'))
+      if (modeRef.current === 'new') {
+        // 新会话继承当前会话的工作目录（与本机文件卡的发送一致）。
+        return current.readers.createSession({ inheritCwdFrom: sessionId })
+          .then(newId => current.readers.sendToSession(newId, body))
+      }
+      return current.readers.sendToSession(sessionId, body)
+    },
+    onPendingChange: setPending,
+    onSuccess: () => { closeSelectionEdit() },
+    onFailure: () => {
+      const current = propsRef.current
+      const message = modeRef.current === 'new' ? current.t('markdownTurn.newSessionFailed') : current.t('markdownTurn.sendFailed')
+      setNotice(state => ({ seq: (state?.seq ?? 0) + 1, text: message }))
+      setToast({ seq: Date.now(), text: message })
+    },
+  }), [])
+
+  const submit = (mode: 'current' | 'new'): void => {
+    modeRef.current = mode
+    controller.submit(inputRef.current?.value ?? '')
   }
 
   const title = t(props.state.multi ? 'selection.multiEditTitle' : 'selection.editTitle')
@@ -110,54 +124,33 @@ function SelectionEditCard(props: {
       {/* fixed 覆盖会话区域：占满整个聊天视口，不随消息滚动移动。 */}
       <div
         ref={coverRef}
-        className={css.editCard}
+        className={css.coverHost}
         data-selection-edit-cover=""
         style={{ position: 'fixed', zIndex: 40 }}
       >
-        <div className={css.localHead}>
-          <span className={css.localName}>{title}</span>
-          <button
-            type="button"
-            className={css.iconButton}
-            data-selection-edit-close=""
-            aria-label={t('markdownTurn.cancel')}
-            title={t('markdownTurn.cancel')}
-            onClick={() => { closeSelectionEdit() }}
-          >
-            <IconCloseOutlineRegular size={15} />
-          </button>
-        </div>
-        <textarea
-          ref={inputRef}
-          className={css.editInput}
-          data-selection-edit-text=""
-          defaultValue={props.state.text}
-          autoFocus
-          aria-label={t('selection.edit')}
-          style={{ flex: 1, minHeight: '224px' }}
-        />
-        <div className={css.editActions}>
-          <button
-            type="button"
-            className={css.editNewSession}
-            data-selection-new-session=""
-            aria-label={t('markdownTurn.newSession')}
-            title={t('markdownTurn.newSession')}
-            onClick={() => { send(true) }}
-          >
-            <IconNewChatOutlineRegular size={15} /> {t('markdownTurn.newSession')}
-          </button>
-          <button
-            type="button"
-            className={css.editSend}
-            data-selection-send=""
-            aria-label={t('markdownTurn.send')}
-            title={t('markdownTurn.send')}
-            onClick={() => { send(false) }}
-          >
-            <IconSendOutlineRegular size={16} />
-          </button>
-        </div>
+        <ComposeCard
+          className={css.coverFill}
+          title={title}
+          subtitle={t('compose.copyHint')}
+          onCancel={() => { if (!pending) closeSelectionEdit() }}
+          onSend={() => { submit('current') }}
+          onSendNewSession={() => { submit('new') }}
+          sendDisabled={!hasText}
+          pending={pending}
+          labels={{ cancel: t('markdownTurn.cancel'), send: t('compose.sendCurrent'), newSession: t('compose.sendNewSession') }}
+        >
+          <textarea
+            ref={inputRef}
+            className={inputClass}
+            data-selection-edit-text=""
+            defaultValue={props.state.text}
+            onChange={event => { setHasText(event.target.value.trim() !== '') }}
+            autoFocus
+            aria-label={t('selection.edit')}
+            style={{ flex: 1, minHeight: '224px' }}
+          />
+          {notice !== null && <p key={notice.seq} className={statusNoticeClass} data-variant="error" role="alert">{notice.text}</p>}
+        </ComposeCard>
       </div>
     </>
   )

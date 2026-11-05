@@ -33,8 +33,19 @@ export interface SendController {
   dispose(): void
 }
 
-export function createSendController(options: SendControllerOptions): SendController {
-  const isEmpty = options.isEmpty ?? ((text: string): boolean => text.trim() === '')
+/** 复制到剪贴板的统一入口：成功 true / 失败 false，绝不抛错。 */
+export async function copyTextToClipboard(text: string): Promise<boolean> {
+  const clipboard = globalThis.navigator?.clipboard
+  if (clipboard === undefined) return false
+  try {
+    await clipboard.writeText(text)
+    return true
+  } catch {
+    return false
+  }
+}
+
+export function createSendController(options: SendControllerOptions): SendController {  const isEmpty = options.isEmpty ?? ((text: string): boolean => text.trim() === '')
   let pending = false
   let disposed = false
   // 代际号：dispose / 后续提交后，迟到的前一笔响应不再回报。

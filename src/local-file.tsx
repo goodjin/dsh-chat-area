@@ -12,13 +12,22 @@
  * 不能用 `conversation.input.attachments`：那是宿主附件区的 **single** 槽位，宿主
  * 附件区已占 priority 0，同优先级重复注册直接抛错——一抛就把同一函数里排在后面的
  * 答案卡片 wrap 一起带走（2026-11-04 现场：答案卡片没有框、没有编辑按钮）。
+ *
+ * 编辑态走 ComposeCard 统一外壳：标题是文件名、说明写明这是发送副本；取消在
+ * 头部、复制全文在动作行左侧弱位、新建会话与发送在右侧。发送走统一控制器——
+ * 空白禁用、在途防重复、**成功才收起**（overlay 收成标题条、tab 交给 onSent），
+ * 失败保留正文并在编辑器下方提示。此前发送一发起就收起卡片，失败只剩一条
+ * Toast、正文没了，这里一并修掉。
  */
-import { useRef, useState, useSyncExternalStore } from 'react'
+import { useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
-import { FileTypeIcon, IconChevronDownOutlineRegular, IconChevronUpOutlineRegular, IconCloseOutlineRegular, IconNewChatOutlineRegular, IconSendOutlineRegular, IconWarningOutlineRegular, Toast, classifyFileType } from '@deepseek-ai/dsh-client-ui-primitives'
+import { FileTypeIcon, IconChevronDownOutlineRegular, IconChevronUpOutlineRegular, IconCloseOutlineRegular, IconWarningOutlineRegular, Toast, classifyFileType } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MarkdownTurnReaders } from './markdown-turn-sources.ts'
 import type { RuntimeT } from './locales.ts'
 import { NAMESPACE } from './locales.ts'
+import { ComposeCard } from './compose-card.tsx'
+import { copyTextToClipboard, createSendController } from './send-actions.ts'
+import { btnQuietClass, btnClass, inputClass, statusNoticeClass, uiButtonClass } from './ui-theme.ts'
 import css from './markdown-turn.module.css'
 
 /** 本机文件选择框可挑的类型：text/* 之外再加常用的代码 / 配置 / 文档后缀。 */
@@ -74,8 +83,8 @@ function currentSessionIdFromDom(): string | undefined {
 }
 
 /**
- * composer 座位里的本机文件卡。doc 为 null 时不占位；编辑态是一张 composer
- * 风格的编辑卡（聚焦描边变色、动作行分隔线、圆发送钮），收起后是一条标题。
+ * composer 座位里的本机文件卡。doc 为 null 时不占位；编辑态是 ComposeCard
+ * 统一外壳，收起后是一条标题条。
  */
 export function LocalFileComposerCard(props: {
   readonly sessionId?: string
@@ -90,105 +99,103 @@ export function LocalFileComposerCard(props: {
 }): ReactNode {
   const variant = props.variant ?? 'overlay'
   const tabMode = variant === 'tab'
-  const [editing, setEditing] = useState(true)
+  const [expanded, setExpanded] = useState(true)
+  const [pending, setPending] = useState(false)
+  const [notice, setNotice] = useState<{ seq: number; text: string } | null>(null)
   const [toast, setToast] = useState<{ seq: number; text: string } | null>(null)
+  const [hasText, setHasText] = useState(props.doc.text.trim() !== '')
   const inputRef = useRef<HTMLTextAreaElement>(null)
-  const [draft, setDraft] = useState(props.doc.text)
+  const modeRef = useRef<'current' | 'new'>('current')
+  const propsRef = useRef(props)
+  propsRef.current = props
   const t = props.t
 
-  const send = (toNew: boolean): void => {
-    const body = draft
-    if (body.trim() === '') return
-    const sessionId = props.sessionId ?? currentSessionIdFromDom()
-    if (sessionId === undefined) return
-    const header = t('markdownTurn.localFileHeader', { name: props.doc.name })
-    const payload = `${header}\n\n${body}`
-    let sending: Promise<void>
-    if (toNew) {
-      // 新会话继承当前会话的工作目录（sessionId 在上面已确保拿到）。
-      sending = props.readers.createSession({ inheritCwdFrom: sessionId })
-        .then(newId => props.readers.sendToSession(newId, payload))
-    } else {
-      sending = props.readers.sendToSession(sessionId, payload)
-    }
-    void sending.then(() => { props.onSent?.() }).catch(() => {
-      setToast({ seq: (toast?.seq ?? 0) + 1, text: t(toNew ? 'markdownTurn.newSessionFailed' : 'markdownTurn.sendFailed') })
+  const controller = useMemo(() => createSendController({
+    send: (body: string): Promise<void> => {
+      const current = propsRef.current
+      const sessionId = current.sessionId ?? currentSessionIdFromDom()
+      if (sessionId === undefined) return Promise.reject(new Error('sessionId unavailable'))
+      const header = current.t('markdownTurn.localFileHeader', { name: current.doc.name })
+      const payload = `${header}\n\n${body}`
+      if (modeRef.current === 'new') {
+        // 新会话继承当前会话的工作目录。
+        return current.readers.createSession({ inheritCwdFrom: sessionId })
+          .then(newId => current.readers.sendToSession(newId, payload))
+      }
+      return current.readers.sendToSession(sessionId, payload)
+    },
+    onPendingChange: setPending,
+    onSuccess: () => {
+      setNotice(null)
+      if (tabMode) propsRef.current.onSent?.()
+      else setExpanded(false)
+    },
+    onFailure: () => {
+      const current = propsRef.current
+      const message = modeRef.current === 'new' ? current.t('markdownTurn.newSessionFailed') : current.t('markdownTurn.sendFailed')
+      setNotice(state => ({ seq: (state?.seq ?? 0) + 1, text: message }))
+      setToast({ seq: Date.now(), text: message })
+    },
+  }), [tabMode])
+
+  const submit = (mode: 'current' | 'new'): void => {
+    modeRef.current = mode
+    controller.submit(inputRef.current?.value ?? '')
+  }
+  const copyAll = (): void => {
+    void copyTextToClipboard(inputRef.current?.value ?? '').then(ok => {
+      setToast({ seq: Date.now(), text: propsRef.current.t(ok ? 'markdownTurn.copied' : 'markdownTurn.copyFailed') })
     })
-    if (!tabMode) setEditing(false)
+  }
+  const close = (): void => {
+    if (pending) return
+    if (props.onClose !== undefined) props.onClose()
+    else setLocalFileDoc(null)
   }
 
   return <>
-    {editing
-      ? <div className={css.editCard} data-local-doc="">
-          <div className={css.localHead}>
-            <span className={css.icon} data-file-icon={classifyFileType(props.doc.name)}>
-              <FileTypeIcon path={props.doc.name} size={14} />
-            </span>
-            <span className={css.localName} title={props.doc.name}>{props.doc.name}</span>
-            {!tabMode && <button
+    {expanded
+      ? <ComposeCard
+          title={props.doc.name}
+          subtitle={t('compose.copyHint')}
+          headExtra={<span className={css.icon} data-file-icon={classifyFileType(props.doc.name)}>
+            <FileTypeIcon path={props.doc.name} size={14} />
+          </span>}
+          headerActions={!tabMode && (
+            <button
               type="button"
-              className={css.iconButton}
+              className={uiButtonClass}
               data-local-collapse=""
               aria-label={t('markdownTurn.collapse')}
               title={t('markdownTurn.collapse')}
-              onClick={() => setEditing(false)}
+              onClick={() => { if (!pending) setExpanded(false) }}
             >
-              <IconChevronUpOutlineRegular size={15} />
-            </button>}
-            {!tabMode && <button
-              type="button"
-              className={css.iconButton}
-              data-local-close=""
-              aria-label={t('markdownTurn.cancel')}
-              title={t('markdownTurn.cancel')}
-              onClick={() => props.onClose ? props.onClose() : setLocalFileDoc(null)}
-            >
-              <IconCloseOutlineRegular size={15} />
-            </button>}
-          </div>
+              <IconChevronUpOutlineRegular size={16} />
+            </button>
+          )}
+          onCancel={close}
+          onSend={() => { submit('current') }}
+          onSendNewSession={() => { submit('new') }}
+          sendDisabled={!hasText}
+          pending={pending}
+          labels={{ cancel: t('markdownTurn.cancel'), send: t('compose.sendCurrent'), newSession: t('compose.sendNewSession') }}
+          actions={<button type="button" className={`${btnClass} ${btnQuietClass}`} onClick={copyAll}>{t('markdownTurn.copyAll')}</button>}
+        >
           <textarea
             ref={inputRef}
-            className={css.editInput}
+            className={inputClass}
             data-local-file-text=""
-            value={draft}
-            onChange={e => { setDraft(e.target.value); props.onDraftChange?.(e.target.value) }}
+            defaultValue={props.doc.text}
+            onChange={event => {
+              setHasText(event.target.value.trim() !== '')
+              props.onDraftChange?.(event.target.value)
+            }}
             autoFocus
             aria-label={t('markdownTurn.edit')}
             style={{ minHeight: '28dvh' }}
           />
-          <div className={css.editActions}>
-            {tabMode
-              ? <>
-                  <button type="button" className={css.tabSend} data-local-send="" onClick={() => send(false)}>发送到会话</button>
-                  <button type="button" className={css.tabNewSession} data-local-new-session="" onClick={() => send(true)}>{t('markdownTurn.newSession')}</button>
-                </>
-              : <>
-                  <button type="button" className={css.iconButton} aria-label="复制全文" onClick={() => {
-                    void navigator.clipboard.writeText(draft).then(() => setToast({ seq: Date.now(), text: '已复制' }), () => setToast({ seq: Date.now(), text: '复制失败' }))
-                  }}>复制全文</button>
-                  <button
-                    type="button"
-                    className={css.editNewSession}
-                    data-local-new-session=""
-                    aria-label={t('markdownTurn.newSession')}
-                    title={t('markdownTurn.newSession')}
-                    onClick={() => send(true)}
-                  >
-                    <IconNewChatOutlineRegular size={15} /> {t('markdownTurn.newSession')}
-                  </button>
-                  <button
-                    type="button"
-                    className={css.editSend}
-                    data-local-send=""
-                    aria-label={t('markdownTurn.send')}
-                    title={t('markdownTurn.send')}
-                    onClick={() => send(false)}
-                  >
-                    <IconSendOutlineRegular size={16} />
-                  </button>
-                </>}
-          </div>
-        </div>
+          {notice !== null && <p key={notice.seq} className={statusNoticeClass} data-variant="error" role="alert">{notice.text}</p>}
+        </ComposeCard>
       : <div className={css.bar} data-local-doc="" data-collapsed="">
           <span className={css.icon} data-file-icon={classifyFileType(props.doc.name)}>
             <FileTypeIcon path={props.doc.name} size={16} />
@@ -200,9 +207,9 @@ export function LocalFileComposerCard(props: {
             data-local-expand=""
             aria-label={t('markdownTurn.expand')}
             title={t('markdownTurn.expand')}
-            onClick={() => setEditing(true)}
+            onClick={() => setExpanded(true)}
           >
-            <IconChevronDownOutlineRegular size={15} />
+            <IconChevronDownOutlineRegular size={16} />
           </button>
           <button
             type="button"
@@ -210,9 +217,9 @@ export function LocalFileComposerCard(props: {
             data-local-close=""
             aria-label={t('markdownTurn.cancel')}
             title={t('markdownTurn.cancel')}
-            onClick={() => props.onClose ? props.onClose() : setLocalFileDoc(null)}
+            onClick={close}
           >
-            <IconCloseOutlineRegular size={15} />
+            <IconCloseOutlineRegular size={16} />
           </button>
         </div>}
     {toast !== null && <Toast

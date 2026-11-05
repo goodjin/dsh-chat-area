@@ -17,6 +17,7 @@ export const NAMESPACE = 'chatPower'
 export type ChatPowerLocaleKey =
   | 'mermaid.label' | 'mermaid.diagram' | 'mermaid.source' | 'mermaid.toggleNamed'
   | 'answerCard.copy' | 'answerCard.copied' | 'answerCard.edit'
+  | 'answerCard.title' | 'answerCard.editAnswer'
   | 'panel.sessionBar.copy' | 'panel.sessionBar.copied' | 'panel.sessionBar.copyFailed'
   | 'markdownTurn.loading' | 'markdownTurn.error' | 'markdownTurn.retry'
   | 'markdownTurn.truncated' | 'markdownTurn.collapse' | 'markdownTurn.expand'
@@ -49,6 +50,8 @@ export const zh: Record<ChatPowerLocaleKey, string> = {
   'answerCard.copy': '复制结果',
   'answerCard.copied': '已复制',
   'answerCard.edit': '编辑',
+  'answerCard.title': '回答',
+  'answerCard.editAnswer': '编辑回答副本',
   'panel.sessionBar.copy': '复制',
   'panel.sessionBar.copied': '已复制',
   'panel.sessionBar.copyFailed': '复制失败：',
@@ -121,6 +124,8 @@ export const en: Record<ChatPowerLocaleKey, string> = {
   'answerCard.copy': 'Copy result',
   'answerCard.copied': 'Copied',
   'answerCard.edit': 'Edit',
+  'answerCard.title': 'Answer',
+  'answerCard.editAnswer': 'Edit answer copy',
   'panel.sessionBar.copy': 'Copy',
   'panel.sessionBar.copied': 'Copied',
   'panel.sessionBar.copyFailed': 'Copy failed: ',

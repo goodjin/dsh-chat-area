@@ -41,6 +41,10 @@ export function ComposeCard(props: {
   readonly subtitle?: ReactNode
   /** 头部最左的附加内容（文件图标、计数等）。 */
   readonly headExtra?: ReactNode
+  /** 头部右侧、取消钮之前的附加按钮（如「收起」）。 */
+  readonly headerActions?: ReactNode
+  /** 附加到面板根元素的类名（覆盖层填充等布局微调）。 */
+  readonly className?: string
   /** 动作行左侧的弱操作（复制全文等）。 */
   readonly actions?: ReactNode
   /** 正文本体；调用方持有 textarea 的 ref 与草稿。 */
@@ -59,13 +63,14 @@ export function ComposeCard(props: {
 }): ReactNode {
   const sendDisabled = props.sendDisabled === true || props.pending === true
   return (
-    <div className={panelClass} data-compose-card="">
+    <div className={props.className === undefined ? panelClass : `${panelClass} ${props.className}`} data-compose-card="">
       <div className={panelHeadClass}>
         {props.headExtra}
         <div className={panelTitleWrapClass}>
           <span className={panelTitleClass}>{props.title}</span>
           {props.subtitle !== undefined && <span className={panelSubtitleClass}>{props.subtitle}</span>}
         </div>
+        {props.headerActions}
         {props.onCancel !== undefined && (
           <button
             type="button"

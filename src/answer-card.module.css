@@ -1,5 +1,6 @@
 /* 最终答案卡片：四边卡，与左侧带 process segment 区分。只贴在答案步上；
-   思考（reasoning）留在卡内、保留原生折叠/展开行为。 */
+   思考（reasoning）留在卡内、保留原生折叠/展开行为。
+   编辑态不再用这里的样式——走 ui-theme 的统一 ComposeCard 外壳。 */
 
 .answerCard {
   border: 1px solid var(--dsw-alias-settings-card-stroke, rgba(127, 127, 127, 0.25));
@@ -17,134 +18,18 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 4px 4px 4px 12px;
   border-block-end: 1px solid var(--dsw-alias-settings-card-stroke, rgba(127, 127, 127, 0.2));
 }
-.answerCardIcon { flex: none; color: var(--dsw-alias-label-secondary, inherit); }
-.answerCardCopy {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: none;
-  border-radius: var(--dsw-radius-sm, 4px);
-  background: transparent;
+.answerCardTitle {
+  font-size: 12px;
+  font-weight: 600;
   color: var(--dsw-alias-label-secondary, inherit);
-  cursor: pointer;
 }
-.answerCardCopy:hover { background: var(--dsw-alias-bg-hover, rgba(127, 127, 127, 0.12)); }
-.answerCardCopy[data-copied] { color: var(--dsw-alias-state-success-primary, var(--dsw-alias-brand-primary, inherit)); }
-.answerCardBody { padding: 12px 16px; }
-
-/* 头部操作区：编辑 + 复制两个图标按钮。 */
+.answerCardIcon { flex: none; color: var(--dsw-alias-label-secondary, inherit); }
+.copiedIcon { color: var(--dsw-alias-state-success-primary, var(--dsw-alias-brand-primary, inherit)); }
 .answerHeaderActions {
   display: flex;
   gap: 4px;
 }
-
-/* 编辑态：仿输入框（composer）的组合条——细描边圆角卡，输入区无边框，聚焦时
-   整卡描边转品牌色；动作行与输入区之间一条分隔线。 */
-.answerEditBox {
-  display: flex;
-  flex-direction: column;
-  margin: 4px 12px 12px;
-  border: 1px solid var(--dsw-alias-border-l2, rgba(127, 127, 127, 0.2));
-  border-radius: var(--dsw-radius-panel, 12px);
-  background: var(--dsw-specific-input-major, rgba(127, 127, 127, 0.04));
-  transition: border-color 120ms;
-  overflow: hidden;
-}
-
-.answerEditBox:focus-within {
-  border-color: var(--dsw-alias-state-business-primary, var(--dsw-alias-brand-primary, rgba(127, 127, 127, 0.5)));
-}
-
-.answerEditInput {
-  width: 100%;
-  padding: 10px 14px 4px;
-  border: none;
-  background: transparent;
-  outline: none;
-  color: var(--dsw-alias-label-primary, inherit);
-  caret-color: var(--dsw-alias-state-business-primary, auto);
-  font: inherit;
-  line-height: 1.6;
-  resize: vertical;
-}
-
-/* 动作行：与输入区之间一条分隔线，圆发送钮和文字按钮垂直居中。 */
-.answerEditActions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 12px;
-  padding: 6px 10px 6px 12px;
-  border-block-start: 1px solid var(--dsw-alias-border-l1, rgba(127, 127, 127, 0.12));
-}
-
-/* 取消按钮占住卡片头部的编辑位置：和编辑图标同款 24px 透明底图标按钮，hover 才
-   铺一层极淡的底色。编辑时就是它替换了编辑图标，动作行里不再放取消。 */
-.answerCardCancelSlot {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: none;
-  border-radius: var(--dsw-radius-sm, 4px);
-  background: transparent;
-  color: var(--dsw-alias-label-secondary, inherit);
-  cursor: pointer;
-}
-
-.answerCardCancelSlot:hover {
-  background: var(--dsw-alias-bg-hover, rgba(127 127 127, 0.12));
-}
-
-/* 新建会话：胶囊文字按钮，hover 才铺一层极淡的底色。与发送钮之间留大间距
-   （.answerEditActions 的 gap + 这里额外的 margin），避免误点发送。 */
-.answerEditNewSession {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-right: 14px;
-  padding: 4px 12px;
-  border: 1px solid var(--dsw-alias-border-l4, rgba(127 127 127 / 0.25));
-  border-radius: 999px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.answerEditNewSession:hover {
-  background: var(--dsw-alias-interactive-bg-hover, rgba(127 127 127 / 0.12));
-}
-
-/* 发送：与输入框发送钮完全同款——34px 圆形，常态铺品牌色 + 反白图标，
-   hover 转浅（`--dsw-alias-button-info-hover`）。 */
-.answerEditSend {
-  display: inline-grid;
-  place-items: center;
-  flex: none;
-  width: 34px;
-  height: 34px;
-  padding: 0;
-  border: none;
-  border-radius: 999px;
-  background: var(--dsw-alias-button-info-fill, var(--dsw-alias-brand-primary, rgb(0 0 0 / 30%)));
-  color: var(--dsw-alias-label-on-accent, #fff);
-  cursor: pointer;
-  transition: background-color 100ms;
-}
-
-.answerEditSend:hover {
-  background: var(--dsw-alias-button-info-hover, var(--dsw-alias-brand-primary, rgb(0 0 0 / 45%)));
-  color: var(--dsw-alias-label-on-accent, #fff);
-}
+.answerCardBody { padding: 12px 16px; }

@@ -104,6 +104,47 @@ describe('统一编辑卡外壳 ComposeCard', () => {
   })
 })
 
+describe('统一编辑链路', () => {
+  /** 四处编辑器：答案副本、本机文件、选区编辑、工作区文件（tab 复用本机文件组件）。 */
+  const EDITORS = ['../src/answer-card.tsx', '../src/local-file.tsx', '../src/selection-edit-card.tsx']
+  const read = (relative: string): string => readFileSync(new URL(relative, import.meta.url), 'utf8')
+
+  it('答案编辑不再经全局 DOM 查询读值（多卡同开不串值）', () => {
+    const source = read('../src/answer-card.tsx')
+    expect(source).not.toContain("document.querySelector('[data-answer-edit-input]')")
+    expect(source).toContain('useRef')
+  })
+
+  it('四处编辑器全部接统一发送控制器与统一外壳', () => {
+    for (const file of EDITORS) {
+      const source = read(file)
+      expect(source).toContain('createSendController')
+      expect(source).toContain('ComposeCard')
+    }
+    expect(read('../src/conversation-tools.tsx')).toContain('LocalFileComposerCard')
+  })
+
+  it('发送动作文案统一：发送到当前会话 / 新建会话并发送', () => {
+    for (const file of EDITORS) {
+      const source = read(file)
+      expect(source).toContain('compose.sendCurrent')
+      expect(source).toContain('compose.sendNewSession')
+    }
+  })
+
+  it('只有发送成功才收起：收起逻辑落在 onSuccess 回调里', () => {
+    for (const file of EDITORS) {
+      expect(read(file)).toContain('onSuccess')
+    }
+  })
+
+  it('发送副本语义有提示：编辑卡带 copyHint 说明', () => {
+    for (const file of EDITORS) {
+      expect(read(file)).toContain('compose.copyHint')
+    }
+  })
+})
+
 describe('统一发送控制器', () => {
   it('空白文本直接拒绝：不发起请求、不进入 pending、不回调', async () => {
     const sent: string[] = []
