@@ -138,6 +138,7 @@ export function selectionBarPosition(
 
 /** 当前会话编号：会话根节点上框架写的 data-conversation-session。 */
 export function currentSessionIdFromDom(): string | undefined {
+  if (typeof document === 'undefined') return undefined
   const node = document.querySelector('[data-conversation-session]')
   const value = node?.getAttribute('data-conversation-session')
   return value === null || value === '' ? undefined : value
@@ -195,9 +196,11 @@ function applyMultiHighlight(): void {
     return
   }
   // Highlight 构造器的 lib.dom 签名（rest AbstractRange[]）与我们的封装
-  // 对不上，这层浏览器 API 鸿沟用断言跨过；运行时就是 new Highlight(ranges)。
-  const HighlightCtor = holder.Highlight as unknown as new (ranges: Range[]) => unknown
-  holder.CSS.highlights.set(MULTI_HIGHLIGHT, new HighlightCtor(multiRanges))
+  // 对不上，这层浏览器 API 鸿沟用断言跨过；运行时是 **rest 参数**
+  // new Highlight(...ranges)——不展开的话数组本身会被当成第一个 Range，
+  // 构造器直接抛「not of type AbstractRange」（2026-11-05 现场）。
+  const HighlightCtor = holder.Highlight as unknown as new (...ranges: Range[]) => unknown
+  holder.CSS.highlights.set(MULTI_HIGHLIGHT, new HighlightCtor(...multiRanges))
 }
 
 /** 把当前选区加入多选收藏并保持高亮。 */
@@ -302,7 +305,15 @@ export function sessionKeyAccessorsOf(ctx: unknown): {
       }
     }
   }
-  const holder = (): UiSessionHolder | undefined => ctx as UiSessionHolder | undefined
+  const holder = (): UiSessionHolder | undefined => {
+    // 宿主契约：ctx.get 只允许读入口 inject 声明过的服务；未声明时直接抛错
+    // 而不是返回 undefined——这里吞掉并落回 undefined，调用方走 DOM 兜底。
+    try {
+      return ctx as UiSessionHolder | undefined
+    } catch {
+      return undefined
+    }
+  }
   return {
     getKey: () => {
       const key = holder()?.uiSession?.adapter?.current?.getSnapshot?.()?.key
