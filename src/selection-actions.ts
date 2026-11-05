@@ -80,10 +80,12 @@ const BAR_CSS = [
   '.dshca-bar-edit{position:fixed;z-index:90;border:none;background:#fff;color:rgb(0 0 0 / 78%);',
   'font:inherit;font-size:12px;line-height:18px;padding:2px 10px;border-radius:6px;cursor:pointer;',
   'white-space:nowrap;border:1px solid rgb(0 0 0 / 8%);box-shadow:0 4px 16px rgb(0 0 0 / 16%);box-sizing:border-box}',
-  '.dshca-bar-edit:hover{background:rgb(0 0 0 / 6%)}',
+  // hover 用**不透明的深色**（选中/按下的观感），不用半透明叠加——那会
+  // 看起来像按钮变透明。
+  '.dshca-bar-edit:hover{background:#d7d9de}',
   '@media (prefers-color-scheme:dark){.dshca-bar-edit{background:#2b2b30;border-color:rgb(255 255 255 / 10%);',
   'color:rgb(255 255 255 / 85%);box-shadow:0 4px 16px rgb(0 0 0 / 45%)}}',
-  '@media (prefers-color-scheme:dark){.dshca-bar-edit:hover{background:rgb(255 255 255 / 10%)}}',
+  '@media (prefers-color-scheme:dark){.dshca-bar-edit:hover{background:#3d3d45}}',
   '.dshca-toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:70;',
   'padding:6px 14px;border-radius:8px;background:rgb(30 30 30 / 92%);color:#fff;font-size:12px;pointer-events:none}',
 ].join('')
