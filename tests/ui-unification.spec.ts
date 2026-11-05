@@ -232,6 +232,12 @@ describe('余面统一：Mermaid、短 ID、宽表', () => {
     expect(source).toContain('md-table-wide td:last-child')
     expect(source).toContain('th:last-child')
   })
+
+  it('关闭本地编辑标签不丢草稿文本：任何关闭路径都不再删除 docs（重开按 contentId 找回）', () => {
+    const source = read('../src/conversation-tools.tsx')
+    expect(source).not.toMatch(/adapter\.close\(id, tab\.id\)[;,]?\s*docs\.delete/)
+    expect(source).toMatch(/onClose=\{\(\) => adapter\.close\(id, tab\.id\)\}/)
+  })
 })
 
 describe('统一发送控制器', () => {

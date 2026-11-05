@@ -162,7 +162,10 @@ export function registerConversationTools(ctx: any) {
                     docs.set(docKey(id, tab.contentId), { ...doc, text, seq: Date.now() })
                     toolsState.markDraft(id, tab.id, true)
                   }}
-                  onSent={() => toolsState.activateChat(id)} onClose={() => { adapter.close(id, tab.id); docs.delete(docKey(id, tab.contentId)) }} />
+                  onSent={() => toolsState.activateChat(id)}
+                  // 卡内「取消」只关标签：docs 里的草稿文本保留（按 contentId），
+                  // 重开同一路径自动找回——不静默丢草稿。
+                  onClose={() => adapter.close(id, tab.id)} />
               : definition && props.renderSlot(BODY, {}, { entryKey: definition.id, hookContext: () => info })}
           </div>
         })}
