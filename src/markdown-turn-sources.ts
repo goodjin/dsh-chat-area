@@ -613,19 +613,34 @@ export function createMarkdownTurnReaders(remote: () => unknown): MarkdownTurnRe
         : undefined
       if (create === undefined) throw new Error('session.create is missing')
       // 新会话要继承当前会话的工作目录：空参数会让宿主把 cwd 落在 App 默认目录上，
-      // 新会话掉进陌生的项目分组（2026-11-05 现场）。查不到当前会话就按旧口径建。
+      // 新会话掉进陌生的项目分组（2026-11-05 现场，用户报告「项目是 nexa-service」
+      // 但新会话建到了 ~/.dsh/profiles/desktop）。
       let request: unknown = {}
       const inheritFrom = options?.inheritCwdFrom
       if (inheritFrom !== undefined && session !== undefined && typeof session.list === 'function') {
         try {
           const summaries: unknown = await session.list()
-          if (Array.isArray(summaries)) {
-            const mine = summaries.find(entry => isRecord(entry) && entry['sessionId'] === inheritFrom)
-            const cwd = isRecord(mine) && typeof mine['cwd'] === 'string' && mine['cwd'] !== '' ? mine['cwd'] : undefined
-            if (cwd !== undefined) request = { cwd }
+          // 宿主 remote 的 session.list 返回 **{ items: [...] } 信封**（RemoteSessionService
+          // 「Read all visible Session rows」），不是裸数组——早先只认裸数组，cwd 查找
+          // 从未命中，每次都静默回退默认目录（同日二次现场）。两种形状都接。
+          const rows: unknown[] = Array.isArray(summaries)
+            ? summaries
+            : isRecord(summaries) && Array.isArray(summaries['items'])
+              ? summaries['items']
+              : []
+          // id 兜底归一：attr/列表万一在前缀上不一致（session-xxx vs xxx）也能对上。
+          const normalize = (id: unknown): string => typeof id === 'string' ? id.replace(/^session-/, '') : ''
+          const target = normalize(inheritFrom)
+          const mine = rows.find(entry => isRecord(entry) && normalize(entry['sessionId']) === target && target !== '')
+          const cwd = isRecord(mine) && typeof mine['cwd'] === 'string' && mine['cwd'] !== '' ? mine['cwd'] : undefined
+          if (cwd !== undefined) {
+            request = { cwd }
+          } else {
+            // 自报状态：静默回退默认目录正是本次事故的掩盖方式，别再无声。
+            console.warn(`[threadharbor-chat-area] createSession: cwd lookup missed for ${inheritFrom}; falling back to host default cwd`)
           }
-        } catch {
-          // 列表读不出来就按旧口径建：新会话可用性优先于分组归属。
+        } catch (error: unknown) {
+          console.warn(`[threadharbor-chat-area] createSession: session.list failed — ${error instanceof Error ? error.message : String(error)}`)
         }
       }
       const value: unknown = await create.call(session, request)
