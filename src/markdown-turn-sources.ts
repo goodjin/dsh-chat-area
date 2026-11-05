@@ -51,7 +51,7 @@ export interface MarkdownTurnReaders {
    * 新建一个会话并返回其编号。不带 agentPreset，让主机用默认（客户端读不到
    * 当前会话的预设，故走默认，与当前会话同模型这一步交给主机默认）。失败时抛错。
    */
-  createSession(): Promise<string>
+  createSession(options?: { inheritCwdFrom?: string }): Promise<string>
 }
 
 /** 一轮里已经能确定的文本路径，外加改动摘要的序号（有的话）。 */
@@ -605,14 +605,30 @@ export function createMarkdownTurnReaders(remote: () => unknown): MarkdownTurnRe
         throw new Error(message)
       }
     },
-    async createSession() {
+    async createSession(options) {
       const holder = remote()
       const session = isRecord(holder) && isRecord(holder.session) ? holder.session : undefined
       const create = session !== undefined && typeof session.create === 'function'
         ? session.create
         : undefined
       if (create === undefined) throw new Error('session.create is missing')
-      const value: unknown = await create.call(session, {})
+      // 新会话要继承当前会话的工作目录：空参数会让宿主把 cwd 落在 App 默认目录上，
+      // 新会话掉进陌生的项目分组（2026-11-05 现场）。查不到当前会话就按旧口径建。
+      let request: unknown = {}
+      const inheritFrom = options?.inheritCwdFrom
+      if (inheritFrom !== undefined && session !== undefined && typeof session.list === 'function') {
+        try {
+          const summaries: unknown = await session.list()
+          if (Array.isArray(summaries)) {
+            const mine = summaries.find(entry => isRecord(entry) && entry['sessionId'] === inheritFrom)
+            const cwd = isRecord(mine) && typeof mine['cwd'] === 'string' && mine['cwd'] !== '' ? mine['cwd'] : undefined
+            if (cwd !== undefined) request = { cwd }
+          }
+        } catch {
+          // 列表读不出来就按旧口径建：新会话可用性优先于分组归属。
+        }
+      }
+      const value: unknown = await create.call(session, request)
       // 远端信封 {ok, value:{sessionId}} 或直接返回 sessionId，两者都接。
       if (typeof value === 'string') return value
       if (isRecord(value) && value['ok'] === true) {

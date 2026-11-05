@@ -338,7 +338,8 @@ function MarkdownDocument({ sessionId, path, readers, t, onNotify }: {
   const sendToNewSession = (text: string): void => {
     if (text === '') return
     const prompt = `${t('markdownTurn.newSessionPromptHeader', { path })}\n\n${text}`
-    void readers.createSession()
+    // 新会话继承当前会话的工作目录：空参数会让它掉进 App 默认目录的陌生项目分组。
+    void readers.createSession({ inheritCwdFrom: sessionId })
       .then(newId => readers.sendToSession(newId, prompt))
       .catch(() => notify(t('markdownTurn.newSessionFailed')))
   }

@@ -81,7 +81,8 @@ export function AnswerCard(props: {
   const sendToNewSession = (body: string): void => {
     if (body === '' || props.readers === undefined) return
     const prompt = `${NEW_SESSION_HEADER}\n\n${body}`
-    void props.readers.createSession()
+    // 新会话继承当前会话的工作目录；拿不到 sessionId 就按旧口径建。
+    void props.readers.createSession(props.sessionId === undefined ? {} : { inheritCwdFrom: props.sessionId })
       .then(newId => props.readers!.sendToSession(newId, prompt))
       .catch(() => notify(props.t('markdownTurn.newSessionFailed')))
   }

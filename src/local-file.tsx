@@ -105,7 +105,8 @@ export function LocalFileComposerCard(props: {
     const payload = `${header}\n\n${body}`
     let sending: Promise<void>
     if (toNew) {
-      sending = props.readers.createSession()
+      // 新会话继承当前会话的工作目录（sessionId 在上面已确保拿到）。
+      sending = props.readers.createSession({ inheritCwdFrom: sessionId })
         .then(newId => props.readers.sendToSession(newId, payload))
     } else {
       sending = props.readers.sendToSession(sessionId, payload)
