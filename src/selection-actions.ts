@@ -59,11 +59,16 @@ const BAR_CSS = [
   `::highlight(dshca-multi){background-color:rgb(59 130 246 / 32%)}`,
   // 多选浮动条：每条独立、圆角、贴会话区域顶部纵向堆叠（间距 2px），
   // 宽度为会话区域的一半；编辑是小按钮，压在最后一条的右下方（间距 5px）。
-  '.dshca-bar{position:fixed;z-index:90;display:flex;align-items:center;gap:6px;',
+  // 双层阴影（近投影 + 远弥散）让条有立体感。
+  '.dshca-bar{position:fixed;z-index:90;display:flex;align-items:center;gap:8px;',
   'height:28px;padding:0 10px;border-radius:8px;background:#fff;',
-  'border:1px solid rgb(0 0 0 / 8%);box-shadow:0 4px 16px rgb(0 0 0 / 16%);box-sizing:border-box}',
+  'border:1px solid rgb(0 0 0 / 8%);',
+  'box-shadow:0 1px 2px rgb(0 0 0 / 10%), 0 6px 20px rgb(0 0 0 / 18%);box-sizing:border-box}',
   '@media (prefers-color-scheme:dark){.dshca-bar{background:#2b2b30;border-color:rgb(255 255 255 / 10%);',
-  'box-shadow:0 4px 16px rgb(0 0 0 / 45%)}}',
+  'box-shadow:0 1px 2px rgb(0 0 0 / 40%), 0 6px 20px rgb(0 0 0 / 50%)}}',
+  // 列表圆点标记：彩色实心圆（品牌色），直径 8px。
+  '.dshca-bar-dot{width:8px;height:8px;border-radius:50%;flex:none;',
+  'background:var(--dsw-alias-state-business-primary, rgb(59 130 246))}',
   '.dshca-bar-text{text-overflow:ellipsis;white-space:nowrap;color:rgb(0 0 0 / 75%);',
   'flex:1;min-width:0;font-size:12px;line-height:20px;overflow:hidden}',
   '@media (prefers-color-scheme:dark){.dshca-bar-text{color:rgb(255 255 255 / 80%)}}',
@@ -448,6 +453,9 @@ export function startSelectionActions(options: {
       bar.style.left = `${left}px`
       bar.style.top = `${barTop(index)}px`
       bar.style.width = `${width}px`
+      const dot = document.createElement('span')
+      dot.className = 'dshca-bar-dot'
+      dot.setAttribute('aria-hidden', 'true')
       const preview = document.createElement('span')
       preview.className = 'dshca-bar-text'
       const flat = item.text.replace(/\s+/g, ' ')
@@ -461,7 +469,7 @@ export function startSelectionActions(options: {
       remove.title = options.t('selection.removeItem')
       remove.textContent = '×'
       remove.addEventListener('click', () => { removeMultiItem(item.id) })
-      bar.append(preview, remove)
+      bar.append(dot, preview, remove)
       document.body.appendChild(bar)
       multiBarEls.push(bar)
     }
