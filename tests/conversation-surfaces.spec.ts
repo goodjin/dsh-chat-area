@@ -1,5 +1,5 @@
 /**
- * 钉住一个跨插件座位契约：chat-area 重注册 `assistant-step` 时必须**声明**
+ * 钉住一个跨插件座位契约：chat-power 重注册 `assistant-step` 时必须**声明**
  * ACP 段渲染器座位 `conversation.chat.node.acp-segment-renderer`。
  *
  * 为什么这条测试重要：acp-agent 用 `slots.inject(该座位, …)` 把 `AcpProcessBlock`
@@ -47,7 +47,7 @@ describe('conversation surfaces', () => {
 
   it('座位名与 acp-agent 侧的字面量一致（跨包不能共享常量，这里钉住契约）', () => {
     // acp-agent 的 acp-process-surface.tsx 里写死了同一个座位名。任一边改名而另一边
-    // 没跟上，ACP 段就会静默退回原生——这条断言让「改名的那一边」至少在 chat-area 这侧
+    // 没跟上，ACP 段就会静默退回原生——这条断言让「改名的那一边」至少在 chat-power 这侧
     // 有据可查（acp-agent 侧的同款字面量靠人工对齐）。
     expect(SEGMENT_RENDERER_SLOT).toBe('conversation.chat.node.acp-segment-renderer')
   })

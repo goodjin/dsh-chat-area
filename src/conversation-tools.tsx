@@ -13,7 +13,7 @@ import { createMarkdownTurnReaders } from './markdown-turn-sources.ts'
 import { fallbackT } from './locales.ts'
 import { readDefaultLinkOpenMode, writeDefaultLinkOpenMode, openInBrowser } from './link-open.ts'
 import css from './conversation-tools.module.css'
-const ROOT = 'chat-area.tools'
+const ROOT = 'chat-power.tools'
 const BODY = toolSlot('sidebar.right.pane.tab')
 
 export function registerConversationTools(ctx: any) {
@@ -144,7 +144,7 @@ export function registerConversationTools(ctx: any) {
     const [reference, setReference] = useState<any>(null)
     useEffect(() => {
       if (!id) { setReference(null); return }
-      const ref = ctx.get('sessions').retain(id, { source: 'chatAreaTools' })
+      const ref = ctx.get('sessions').retain(id, { source: 'chatPowerTools' })
       setReference({ id, ref })
       void ref.ready.catch((error: unknown) => console.error('Conversation tools session:', error))
       return () => ref.release()
@@ -253,7 +253,7 @@ export function registerConversationTools(ctx: any) {
         <props.SessionProvider session={reference.ref}>{props.renderSlot(ROOT, {})}</props.SessionProvider>, mounts.body)}
     </>
   }
-  ctx.slots.inject('shell.overlay', () => ctx.slots.register({ name: 'shell.overlay', id: 'chat-area-tools-portal',
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register({ name: 'shell.overlay', id: 'chat-power-tools-portal',
     children: { [ROOT]: { kind: 'single', scope: 'session' } },
   }, PortalRoot))
   ctx.slots.inject(ROOT, () => ctx.slots.register({ name: ROOT, children: {
@@ -284,11 +284,11 @@ export function registerConversationTools(ctx: any) {
     return <><button disabled={busy} onClick={() => void run(false)}>复制全文</button><button disabled={busy} onClick={() => void run(true)}>编辑并发送</button><span role="status">{status}</span></>
   }
   ctx.slots.inject(toolSlot('sidebar.right.tab.document.actions'), () => ctx.slots.register({
-    name: toolSlot('sidebar.right.tab.document.actions'), id: 'chat-area-document-actions',
+    name: toolSlot('sidebar.right.tab.document.actions'), id: 'chat-power-document-actions',
   }, DocumentActions))
   adapter.install()
   // 文件树行控件：在私有座位上重注册 FilesBody，补挂多选框与悬浮编辑按钮。
-  ctx.effect(() => attachFilesTreeAugment(ctx.slots, augmentHandlers), 'chat-area: files tree augment')
+  ctx.effect(() => attachFilesTreeAugment(ctx.slots, augmentHandlers), 'chat-power: files tree augment')
   // One policy for ordinary HTTP links across the application. Explicit modifiers
   // retain browser conventions. Native browser's external button remains explicit.
   ctx.effect(() => {

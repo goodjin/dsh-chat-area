@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url'
 import { transform } from 'lightningcss'
 import { defineConfig } from 'tsdown'
 
-const id = '@goodjin2/dsh-chat-area'
+const id = '@goodjin2/dsh-chat-power'
 const root = fileURLToPath(new URL('.', import.meta.url))
 const cssPrefix = '\0threadharbor-css:'
 const cssSuffix = '.mjs'
@@ -62,7 +62,7 @@ export default defineConfig({
       const file = virtualId.slice(cssPrefix.length, -cssSuffix.length)
       this.addWatchFile(file)
       // lightningcss 的 [hash] 以文件名为种子：传绝对路径会让产物类名哈希随构建目录
-      // 变化（.worktrees/... vs 主仓 → 同一 CSS 出不同 hash）。chat-area 的 module.css
+      // 变化（.worktrees/... vs 主仓 → 同一 CSS 出不同 hash）。chat-power 的 module.css
       // 基名唯一，传基名即让哈希只由内容决定、跨目录可复现。
       const result = transform({
         filename: basename(file),

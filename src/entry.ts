@@ -12,7 +12,7 @@
  */
 
 /** Loader 行与诊断里看到的插件名。 */
-export const name = 'threadharbor-chat-area'
+export const name = 'dsh-chat-power'
 
 /** 宿主侧没有行为：会话区的一切都在浏览器半边。 */
 export function apply(): void {}

@@ -21,7 +21,7 @@ import { fallbackT } from './locales.ts'
 import type { RuntimeT } from './locales.ts'
 
 /** 宿主侧 mermaid-asset 路由登记的同一路径。 */
-export const MERMAID_ROUTE_PATH = '/threadharbor/mermaid.js'
+export const MERMAID_ROUTE_PATH = '/chat-power/mermaid.js'
 
 /** Mermaid 运行时里本模块用到的那一面（UMD 的 `window.mermaid`）。 */
 export type MermaidApi = {

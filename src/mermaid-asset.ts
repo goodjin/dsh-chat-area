@@ -3,7 +3,7 @@
  *
  * 浏览器侧不把 3.5 MB 的 mermaid 打进客户端包（每次页面启动都要解析执行），
  * 而是在第一次遇到真正的 Mermaid 代码块时才注入 `<script>`，从本机
- * `/threadharbor/mermaid.js` 取这份 UMD 文件。同一登录准入（`connection.admit`
+ * `/chat-power/mermaid.js` 取这份 UMD 文件。同一登录准入（`connection.admit`
  * 的 cookie 校验与原样状态码），不走 CDN、离线可用；同源主机网关下的页面按
  * `<base href>` 解析成网关子路径，请求仍会落到这里。
  *
@@ -18,13 +18,13 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 
-export const name = 'threadharbor-mermaid-asset'
+export const name = 'chat-power-mermaid-asset'
 
 /** webServer 挂路由；connection 做准入（admit）。 */
 export const inject = ['webServer', 'connection']
 
 /** exact 路由路径；浏览器侧的 mermaid.ts 用同一个常量。 */
-export const MERMAID_ROUTE_PATH = '/threadharbor/mermaid.js'
+export const MERMAID_ROUTE_PATH = '/chat-power/mermaid.js'
 
 /** 资产文件名：随 mermaid 包发布，内容变化时 ETag 跟着变。 */
 const ASSET_FILE = 'mermaid.min.js'
@@ -99,7 +99,7 @@ export function registerMermaidAssetRoute(ctx: MermaidAssetContext, deps: Mermai
             } catch (error) {
               if (!failureLogged) {
                 failureLogged = true
-                ctx.logger?.('threadharbor-mermaid-asset').warn(
+                ctx.logger?.('chat-power-mermaid-asset').warn(
                   `mermaid runtime is missing from this install; diagrams stay as code (${error instanceof Error ? error.message : String(error)})`,
                 )
               }
@@ -124,7 +124,7 @@ export function registerMermaidAssetRoute(ctx: MermaidAssetContext, deps: Mermai
           res.end(asset.bytes)
         },
       }),
-    'threadharbor-mermaid-asset: asset route',
+    'chat-power-mermaid-asset: asset route',
   )
 }
 

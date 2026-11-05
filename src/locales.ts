@@ -12,9 +12,9 @@ export type Params = Record<string, string | number>
 /** 翻译函数形状：key + 可选插值参数。 */
 export type RuntimeT = (key: string, params?: Params) => string
 
-export const NAMESPACE = 'threadharborChatArea'
+export const NAMESPACE = 'chatPower'
 
-export type ChatAreaLocaleKey =
+export type ChatPowerLocaleKey =
   | 'mermaid.label' | 'mermaid.diagram' | 'mermaid.source' | 'mermaid.toggleNamed'
   | 'answerCard.copy' | 'answerCard.copied' | 'answerCard.edit'
   | 'panel.sessionBar.copy' | 'panel.sessionBar.copied' | 'panel.sessionBar.copyFailed'
@@ -39,7 +39,7 @@ export type ChatAreaLocaleKey =
   | 'selection.removeItem'
   | 'selection.multiAdded' | 'selection.editTitle' | 'selection.multiEditTitle'
 
-export const zh: Record<ChatAreaLocaleKey, string> = {
+export const zh: Record<ChatPowerLocaleKey, string> = {
   'mermaid.label': 'Mermaid',
   'mermaid.diagram': '图表',
   'mermaid.source': '源码',
@@ -107,7 +107,7 @@ export const zh: Record<ChatAreaLocaleKey, string> = {
   'selection.multiEditTitle': '编辑多选内容',
 }
 
-export const en: Record<ChatAreaLocaleKey, string> = {
+export const en: Record<ChatPowerLocaleKey, string> = {
   'mermaid.label': 'Mermaid',
   'mermaid.diagram': 'Diagram',
   'mermaid.source': 'Source',
@@ -183,14 +183,14 @@ function interpolate(template: string, params?: Params): string {
 
 /** 缺 key 时退回中文，再退回 key 原文——绝不抛错。 */
 export const fallbackT: RuntimeT = (key, params) => {
-  const k = key as ChatAreaLocaleKey
+  const k = key as ChatPowerLocaleKey
   return interpolate(zh[k] ?? key, params)
 }
 
 /** 运行时 locale 感知的翻译；拿不到注册表时退回 {@link fallbackT}。 */
 export function makeT(dict: Record<string, string>): RuntimeT {
   return (key, params) => {
-    const k = key as ChatAreaLocaleKey
+    const k = key as ChatPowerLocaleKey
     return interpolate(dict[k] ?? zh[k] ?? key, params)
   }
 }

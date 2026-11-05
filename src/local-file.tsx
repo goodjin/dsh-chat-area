@@ -236,7 +236,7 @@ interface ComposerSlotHost {
 }
 
 /** composer attachments 座位里本条目的 id。 */
-export const LOCAL_FILE_ID = 'chat-area-local-file'
+export const LOCAL_FILE_ID = 'chat-power-local-file'
 
 /**
  * 把本机文件卡注册进 composer 的附件座位（会话作用域 list）。order 20 排在

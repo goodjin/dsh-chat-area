@@ -210,7 +210,7 @@ function applyMultiHighlight(): void {
     Highlight?: unknown
   }
   if (holder.CSS?.highlights === undefined || holder.Highlight === undefined) {
-    console.info('[threadharbor-chat-area] CSS Custom Highlight API unavailable; multi-select keeps text only')
+    console.info('[dsh-chat-power] CSS Custom Highlight API unavailable; multi-select keeps text only')
     return
   }
   // 已失效（塌缩）的 Range 直接淘汰。
@@ -388,8 +388,8 @@ export function startSelectionActions(options: {
 }): () => void {
   if (typeof document === 'undefined') return () => {}
   const style = document.createElement('style')
-  style.dataset.plugin = 'threadharbor-chat-area'
-  style.dataset.pluginCss = 'threadharbor-chat-area/selection-bar'
+  style.dataset.plugin = 'dsh-chat-power'
+  style.dataset.pluginCss = 'dsh-chat-power/selection-bar'
   style.textContent = BAR_CSS
   document.head.appendChild(style)
 

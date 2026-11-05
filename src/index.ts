@@ -4,7 +4,7 @@
  * 通用会话区功能，与跑哪种 agent 无关：
  * - 会话头部右端的「短会话 ID + 复制」（本包独有）；
  * - Mermaid 图渲染（扫 DOM 的 ```mermaid 代码块，画成 SVG，可切「图表 / 源码」）；
- *   运行时经宿主半边 `/threadharbor/mermaid.js` 按需懒加载，不内联进客户端包；
+ *   运行时经宿主半边 `/chat-power/mermaid.js` 按需懒加载，不内联进客户端包；
  * - 答案卡片、会话尾部文件阅读区（`conversation-surfaces.tsx`）。
  *
  * 历史上这些曾在 `@goodjin2/dsh-acp-agent` 的浏览器半边实现，2026-11 迁回本包。
@@ -21,7 +21,7 @@ import { registerConversationSurfaces } from './conversation-surfaces.tsx'
 import { fallbackT } from './locales.ts'
 
 /** Loader 行与诊断里看到的插件名。 */
-export const name = 'threadharbor-chat-area'
+export const name = 'dsh-chat-power'
 
 /**
  * 依赖：插槽表、locale 注册中心（文案）、remote 服务（文件阅读区读 workspaceFiles /
@@ -86,7 +86,7 @@ export function apply(ctx: PluginContext): void {
       fallbackT,
       sessionKeyAccessorsOf(ctx),
     )
-    ctx.effect(() => disposeSelection, 'threadharbor-chat-area: selection actions')
+    ctx.effect(() => disposeSelection, 'dsh-chat-power: selection actions')
     log.info('selection actions: started')
   } catch (error: unknown) {
     log.warn(`selection actions: start failed — ${error instanceof Error ? error.message : String(error)}`)

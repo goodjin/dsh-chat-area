@@ -13,6 +13,6 @@ import { MERMAID_ROUTE_PATH as HOST_ROUTE } from '../src/mermaid-asset.ts'
 describe('Mermaid 资产路由', () => {
   it('客户端与宿主用同一个路径', () => {
     expect(CLIENT_ROUTE).toBe(HOST_ROUTE)
-    expect(CLIENT_ROUTE).toBe('/threadharbor/mermaid.js')
+    expect(CLIENT_ROUTE).toBe('/chat-power/mermaid.js')
   })
 })

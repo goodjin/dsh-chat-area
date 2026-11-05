@@ -8,7 +8,7 @@
  * 就吃掉前面的一个），后面的引用/引文区间整体前移。
  */
 
-/** 宿主草稿引用区间里 chat-area 依赖的字段。 */
+/** 宿主草稿引用区间里 chat-power 依赖的字段。 */
 export interface FileRefSpan {
   source: string
   ref: string
@@ -19,7 +19,7 @@ export interface FileRefSpan {
   clipboardText: string
 }
 
-/** 宿主草稿快照里 chat-area 读写的字段子集（结构对齐 DraftSnapshot）。 */
+/** 宿主草稿快照里 chat-power 读写的字段子集（结构对齐 DraftSnapshot）。 */
 export interface FileRefSnapshot {
   text: string
   references: readonly FileRefSpan[]

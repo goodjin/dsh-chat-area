@@ -17,14 +17,14 @@
 const TABLE_PAD_CSS = '[class*="tableScroll"].md-table-wide td:last-child{padding-right:16px}'
 
 /** 本条注入在 head 里的标记，重复注入与诊断都靠它。 */
-export const TABLE_PAD_TAG = 'threadharbor-chat-area/table-pad'
+export const TABLE_PAD_TAG = 'dsh-chat-power/table-pad'
 
 /** 往页面 head 注入覆盖样式；已注入过则跳过，非浏览器环境安静返回。 */
 export function injectTablePadCss(): void {
   if (typeof document === 'undefined') return
   if (document.querySelector(`style[data-plugin-css="${TABLE_PAD_TAG}"]`) !== null) return
   const tag = document.createElement('style')
-  tag.dataset.plugin = 'threadharbor-chat-area'
+  tag.dataset.plugin = 'dsh-chat-power'
   tag.dataset.pluginCss = TABLE_PAD_TAG
   tag.textContent = TABLE_PAD_CSS
   document.head.appendChild(tag)

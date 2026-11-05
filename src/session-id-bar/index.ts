@@ -22,7 +22,7 @@ type UtilitiesSlotHost = {
 }
 
 /** 注册项在会话头部工具行里的 key；只用自己的 id，不去占别人的格子。 */
-export const PANEL_ID = 'chat-area-session-id'
+export const PANEL_ID = 'chat-power-session-id'
 
 /**
  * 词条解析：框给的 `t` 解不出来时会**原样返回键名**（词典没注册、语言缺失），

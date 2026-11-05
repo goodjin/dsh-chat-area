@@ -8,7 +8,7 @@ import * as terminal from '@deepseek-ai/dsh-client-ui-sidebar-terminal'
 import * as documentPreview from '@deepseek-ai/dsh-client-ui-sidebar-documentpreview'
 import { readDefaultLinkOpenMode, openInBrowser } from './link-open.ts'
 import { toolsState, type ToolTab } from './tools-state.ts'
-export const toolSlot = (name: string) => name.startsWith('sidebar.right.') ? `chat-area.tools.${name.slice('sidebar.right.'.length)}` : name
+export const toolSlot = (name: string) => name.startsWith('sidebar.right.') ? `chat-power.tools.${name.slice('sidebar.right.'.length)}` : name
 export const features = [files, browser, terminal, documentPreview]
 
 export function createToolsAdapter(ctx: any) {
@@ -70,7 +70,7 @@ export function createToolsAdapter(ctx: any) {
   })
   const mappedStore = (handle: any) => {
     if (!handle) return undefined
-    if (!handles.has(handle)) handles.set(handle, { ...handle, create: (key?: string) => handle.create(`chat-area.tools.${key ?? 'root'}`) })
+    if (!handles.has(handle)) handles.set(handle, { ...handle, create: (key?: string) => handle.create(`chat-power.tools.${key ?? 'root'}`) })
     return handles.get(handle)
   }
   function facade(scope: any): any {
@@ -117,12 +117,12 @@ export function createToolsAdapter(ctx: any) {
       const sync = () => ctx.get('webTerminals')?.retainTabs([...openTabs.getSnapshot().filter((t: any) => t.kind === 'terminal'), ...toolsState.inventory().filter(t => t.kind === 'terminal')])
       const off = openTabs.subscribe(sync)
       return () => { off(); toolsState.dispose(); sync() }
-    }, 'chat-area: independent tools lifetime')
+    }, 'chat-power: independent tools lifetime')
   }
   return { install, definitions, open, close, openResource, occurrence,
     tabInfo(sessionId: string, tab: ToolTab, visible: boolean) {
       const held = occurrence(sessionId, tab)
-      return { sidebar: { expanded: true, fullscreen: false }, panel: { id: 'chat-area-tools' },
+      return { sidebar: { expanded: true, fullscreen: false }, panel: { id: 'chat-power-tools' },
         tab: { ...tab, visible, navigation: held.navigation.getSnapshot(), signal: held.signal, actions: held.tabActions } }
     },
   }

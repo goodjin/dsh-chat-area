@@ -9,7 +9,7 @@
  */
 import { fileMention, fileReferenceInsert, fileReferenceRemove, type FileRefSnapshot } from './file-references.ts'
 
-/** 宿主输入外壳里 chat-area 用到的最小面。 */
+/** 宿主输入外壳里 chat-power 用到的最小面。 */
 export interface InputShellFace {
   readonly draftSnapshot: unknown
   setDraft(draft: unknown): void
@@ -22,7 +22,7 @@ export interface ReferenceApplierDeps {
   insertViaCommand?(text: string): boolean
 }
 
-/** 把未知形态的草稿快照收敛成 chat-area 可写的结构。 */
+/** 把未知形态的草稿快照收敛成 chat-power 可写的结构。 */
 function asSnapshot(value: unknown): FileRefSnapshot {
   if (typeof value === 'object' && value !== null) {
     const record = value as { text?: unknown; references?: unknown; command?: unknown; quotes?: unknown }

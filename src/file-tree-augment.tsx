@@ -2,7 +2,7 @@
  * 工作区文件树的行控件：多选框（勾选 → 输入框文件引用）+ 悬浮编辑按钮。
  *
  * 宿主 FilesBody 的行上没有预留座位；这里在**私有**座位
- * `chat-area.tools.sidebar.right.pane.tab` 上把 FilesBody 重注册一遍（同 key、
+ * `chat-power.tools.sidebar.right.pane.tab` 上把 FilesBody 重注册一遍（同 key、
  * 优先级更低从而在外层），渲染原生组件并在容器上补挂控件：
  *
  * - 行控件是挂在行元素上的绝对定位覆盖层（不是 React 受管子节点的插队），
@@ -15,9 +15,9 @@ import type { ReactNode } from 'react'
 import augmentCss from './file-tree-augment.module.css'
 
 /** 私有座位名（宿主 `sidebar.right.pane.tab` 经 toolSlot 映射后的名字）。 */
-export const FILES_PANE_SLOT = 'chat-area.tools.sidebar.right.pane.tab'
+export const FILES_PANE_SLOT = 'chat-power.tools.sidebar.right.pane.tab'
 /** 宿主 files 条目独有的 children 座位名（映射后），用作识别标记。 */
-export const FILES_ACTIONS_CHILD = 'chat-area.tools.sidebar.right.tab.files.actions'
+export const FILES_ACTIONS_CHILD = 'chat-power.tools.sidebar.right.tab.files.actions'
 
 /** 插槽注册表里一个条目的最小结构。 */
 interface SlotEntry {
@@ -25,7 +25,7 @@ interface SlotEntry {
   component: unknown
 }
 
-/** 宿主插槽表 chat-area 用到的最小面。 */
+/** 宿主插槽表 chat-power 用到的最小面。 */
 interface AugmentSlots {
   entries(key: string): readonly SlotEntry[]
   subscribe(key: string, fn: () => void): () => void

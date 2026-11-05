@@ -18,7 +18,7 @@
  * 两者不能各自再挂一个 wrap（同一挂载点多 wrap 叠加行为不可控，会互相覆盖），
  * 所以由本包独占这个 wrap，再开一个**座位挂钩** `SEGMENT_RENDERER_SLOT`：
  * acp-agent 把它的 `AcpProcessComponent` 注册进这个座位，本包在 wrap 里遇到
- * ACP 进程段时取来渲染。缺席时退回原生渲染（不炸）。这样通用件归 chat-area，
+ * ACP 进程段时取来渲染。缺席时退回原生渲染（不炸）。这样通用件归 chat-power，
  * ACP 专属渲染仍留在 acp-agent，两边只通过一个座位名耦合。
  *
  * `acpProcessSegment` 数据本身仍由 acp-agent 的 `wrapChatView` 注入节点；本包
@@ -57,7 +57,7 @@ const NODE_KEY = 'assistant-step'
  * 那时座位没人声明，它自己渲染 ACP 段。
  *
  * 2026-11-03 现场：这里曾是 -20，而 acp-agent 是 -40，于是 acp-agent 盖住了
- * 本包，答案卡片整块不出现；acp-agent 注释里写的「chat-area 是 -30」也与实际
+ * 本包，答案卡片整块不出现；acp-agent 注释里写的「chat-power 是 -30」也与实际
  * 不符。改优先级时两边一起改，本文件底部的测试钉住了这个不变量。
  */
 const WRAP_PRIORITY = -50
@@ -172,11 +172,11 @@ function registerLocales(ctx: Surface): void {
     const dispose = (register as (ns: string, dicts: Record<string, Record<string, string>>) => unknown)
       .call(service, NAMESPACE, { zh: { ...zh }, en: { ...en } })
     if (typeof dispose === 'function' && typeof ctx.effect === 'function') {
-      ctx.effect(() => dispose as () => void, 'threadharbor-chat-area: locale dictionaries')
+      ctx.effect(() => dispose as () => void, 'dsh-chat-power: locale dictionaries')
     }
   } catch (error) {
     // 重复注册（同一命名空间已有该语言）也会抛：留一行，别静默。
-    console.warn(`[threadharbor-chat-area] locale dictionaries: ${error instanceof Error ? error.message : String(error)}`)
+    console.warn(`[dsh-chat-power] locale dictionaries: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
 
@@ -233,7 +233,7 @@ export function registerConversationSurfaces(ctx: Surface): void {
   try {
     registerMarkdownTurn(slots as unknown as Parameters<typeof registerMarkdownTurn>[0], readers)
   } catch (error) {
-    if (typeof console !== 'undefined') console.warn(`[threadharbor-chat-area] markdown turn: registration failed — ${error instanceof Error ? error.message : String(error)}`)
+    if (typeof console !== 'undefined') console.warn(`[dsh-chat-power] markdown turn: registration failed — ${error instanceof Error ? error.message : String(error)}`)
   }
 
   // 本机文件卡：composer 上方的 overlay 座位，入口在会话头部（会话 ID 左侧）。
@@ -252,6 +252,6 @@ export function registerConversationSurfaces(ctx: Surface): void {
       sessionKey,
     )
   } catch (error) {
-    if (typeof console !== 'undefined') console.warn(`[threadharbor-chat-area] local file composer: registration failed — ${error instanceof Error ? error.message : String(error)}`)
+    if (typeof console !== 'undefined') console.warn(`[dsh-chat-power] local file composer: registration failed — ${error instanceof Error ? error.message : String(error)}`)
   }
 }

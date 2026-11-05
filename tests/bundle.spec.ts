@@ -38,7 +38,7 @@ function loadBundleRow(): { id: string; factory: (require: (specifier: string) =
 describe('lib/client.js 是页面能装的产物', () => {
   it('登记了正确的 id，factory 执行后 apply 能注册会话 ID 条', () => {
     const row = loadBundleRow()
-    expect(row.id).toBe('@goodjin2/dsh-chat-area')
+    expect(row.id).toBe('@goodjin2/dsh-chat-power')
 
     // 页面给的 require 只能取到模块表里有的东西：react 与页面提供的 primitives
     // （答案卡片 / 文件阅读区用的图标与组件）。其余外置模块不该再要。

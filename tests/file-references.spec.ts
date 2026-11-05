@@ -3,7 +3,7 @@
  *
  * 草稿快照形状来自宿主 conversation 的 DraftSnapshot 契约：references 是
  * 有序、不重叠的文本区间，区间文本必须等于 clipboardText。这里钉住
- * chat-area 生成/移除引用时维持这些不变量。
+ * chat-power 生成/移除引用时维持这些不变量。
  */
 import { describe, expect, it } from 'vitest'
 import { fileMention, fileReferenceInsert, fileReferenceRemove, type FileRefSnapshot } from '../src/file-references.ts'

@@ -23,7 +23,7 @@ import type { RuntimeT } from './locales.ts'
 import { NAMESPACE } from './locales.ts'
 import css from './markdown-turn.module.css'
 
-export const SELECTION_EDIT_ID = 'chat-area-selection-edit'
+export const SELECTION_EDIT_ID = 'chat-power-selection-edit'
 
 /** 编辑卡覆盖会话区域时的内边距。 */
 const COVER_PADDING = 16

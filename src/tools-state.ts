@@ -19,7 +19,7 @@ export interface ToolTab {
 export interface ToolsSnapshot { active?: string; tabs: readonly ToolTab[] }
 
 /** Stable id of the per-session conversation tab; one session owns exactly one. */
-export const CHAT_TAB_ID = 'chat-area-chat-tab'
+export const CHAT_TAB_ID = 'chat-power-chat-tab'
 const EMPTY: ToolsSnapshot = { tabs: [] }
 const chatTab = (): ToolTab => ({ id: CHAT_TAB_ID, kind: 'chat', contentId: 'chat://session', title: '会话', controller: new AbortController(), commands: {} })
 export class ToolsState {

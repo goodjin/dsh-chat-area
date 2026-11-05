@@ -30,10 +30,10 @@ describe('private feature adapter', () => {
   it('namespaces seats and persisted stores without changing the native sidebar', () => {
     const h = host(); const adapter = createToolsAdapter(h.ctx); adapter.install()
     const [options] = h.register.mock.calls[0] as unknown as [any]
-    expect(options.name).toBe('chat-area.tools.pane.tab')
-    expect(Object.keys(options.children)).toEqual(['chat-area.tools.tab.files.actions'])
+    expect(options.name).toBe('chat-power.tools.pane.tab')
+    expect(Object.keys(options.children)).toEqual(['chat-power.tools.tab.files.actions'])
     options.store.create('session-one')
-    expect(fixture.scopes).toEqual(['chat-area.tools.session-one'])
+    expect(fixture.scopes).toEqual(['chat-power.tools.session-one'])
     fixture.source.sidebarRight.openTabIn('session-one', 'files')
     expect(toolsState.get('session-one').tabs).toHaveLength(1)
     expect(h.nativeOpen).not.toHaveBeenCalled()

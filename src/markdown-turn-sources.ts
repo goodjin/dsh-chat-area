@@ -637,10 +637,10 @@ export function createMarkdownTurnReaders(remote: () => unknown): MarkdownTurnRe
             request = { cwd }
           } else {
             // 自报状态：静默回退默认目录正是本次事故的掩盖方式，别再无声。
-            console.warn(`[threadharbor-chat-area] createSession: cwd lookup missed for ${inheritFrom}; falling back to host default cwd`)
+            console.warn(`[dsh-chat-power] createSession: cwd lookup missed for ${inheritFrom}; falling back to host default cwd`)
           }
         } catch (error: unknown) {
-          console.warn(`[threadharbor-chat-area] createSession: session.list failed — ${error instanceof Error ? error.message : String(error)}`)
+          console.warn(`[dsh-chat-power] createSession: session.list failed — ${error instanceof Error ? error.message : String(error)}`)
         }
       }
       const value: unknown = await create.call(session, request)

@@ -1,8 +1,8 @@
 /**
  * 文件树行控件：wrap 注册契约与纯判定。
  *
- * 宿主文件树行上没有预留座位；chat-area 在私有座位
- * `chat-area.tools.sidebar.right.pane.tab` 上重注册 FilesBody（降优先级、同 key），
+ * 宿主文件树行上没有预留座位；chat-power 在私有座位
+ * `chat-power.tools.sidebar.right.pane.tab` 上重注册 FilesBody（降优先级、同 key），
  * 在外层补挂多选框与悬浮编辑按钮。这里钉住 wrap 注册契约和行/路径判定。
  */
 import { describe, expect, it } from 'vitest'
@@ -24,8 +24,8 @@ describe('工作区文件 wrap 注册契约', () => {
     expect(isWorkspaceFilesEntry(browserEntry as never)).toBe(false)
   })
   it('私有座位名映射正确（不碰宿主右侧栏的槽位）', () => {
-    expect(FILES_PANE_SLOT).toBe('chat-area.tools.sidebar.right.pane.tab')
-    expect(FILES_ACTIONS_CHILD).toBe('chat-area.tools.sidebar.right.tab.files.actions')
+    expect(FILES_PANE_SLOT).toBe('chat-power.tools.sidebar.right.pane.tab')
+    expect(FILES_ACTIONS_CHILD).toBe('chat-power.tools.sidebar.right.tab.files.actions')
   })
 })
 

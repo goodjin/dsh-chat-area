@@ -1,4 +1,4 @@
-# dsh-chat-area
+# dsh-chat-power
 
 DSH 会话区增强插件：与跑哪种 agent 无关的会话区功能都归这里。
 
@@ -39,16 +39,16 @@ DSH 会话区增强插件：与跑哪种 agent 无关的会话区功能都归这
   或点击别处收起。
 - **Mermaid 图渲染**：把 Markdown 里的 ` ```mermaid ` 代码块画成 SVG，可切「图表 /
   源码」。运行时 3.5 MB 不内联进客户端包，第一次遇到图时才从宿主路由
-  `/threadharbor/mermaid.js` 懒加载。
+  `/chat-power/mermaid.js` 懒加载。
 
 | 功能 | 注册位置 |
 | --- | --- |
 | 会话区标签工作台 | `shell.overlay` 管理生命周期，React portal 插入会话正文的正常布局（条带在会话内容之前） |
-| 文件树行控件 | 私有座位 `chat-area.tools.sidebar.right.pane.tab` 上重注册 FilesBody（优先级 -10），DOM 覆盖层补挂控件 |
+| 文件树行控件 | 私有座位 `chat-power.tools.sidebar.right.pane.tab` 上重注册 FilesBody（优先级 -10），DOM 覆盖层补挂控件 |
 | 短会话 ID + 复制 | `conversation.session.header.utilities`（会话作用域 list） |
 | 答案卡片 | 包住 `conversation.chat.node` 的 `assistant-step`（优先级 -50） |
 | 会话尾部文件卡片 | `conversation.chat.turnTail` |
-| Mermaid | DOM 级（扫已渲染的 Markdown）+ 宿主路由 `/threadharbor/mermaid.js` |
+| Mermaid | DOM 级（扫已渲染的 Markdown）+ 宿主路由 `/chat-power/mermaid.js` |
 
 ## 与 dsh-acp-agent 的关系（两个包都装时）
 
@@ -68,18 +68,18 @@ ACP 的**进程段**（工具调用/思考的过程卡片）是 agent 专属的�
 ## 安装与挂载
 
 ```sh
-npm install @goodjin2/dsh-chat-area
+npm install @goodjin2/dsh-chat-power
 ```
 
-在 profile 的 `dsh.profile.bundles` 里加上 `@goodjin2/dsh-chat-area` 即可。本包自带
+在 profile 的 `dsh.profile.bundles` 里加上 `@goodjin2/dsh-chat-power` 即可。本包自带
 `cordis.patch.yml`（`dsh.bundle.patch`），里面包含：
 
-- `chat-area-client`：以**裸包名**挂载本包，浏览器半边靠它被扫进
+- `chat-power-client`：以**裸包名**挂载本包，浏览器半边靠它被扫进
   `window.__DSH_BOOT__`。这一行不是可有可无的：DSH 不按 `package.json` 的
   `dsh.client` 自动装载浏览器包，只看 Loader 的行名是否恰好等于包名
   （`ClientModuleRegistry.resolveMeta` 经 `locatePkgJson` 解析；带子路径的名字
   一律不算客户端行）。少了它，插件装上也什么都不发生，宿主日志里一个字都没有。
-- `threadharbor-mermaid-asset`：宿主侧 `/threadharbor/mermaid.js` 这条 exact 路由，
+- `chat-power-mermaid-asset`：宿主侧 `/chat-power/mermaid.js` 这条 exact 路由，
   供浏览器半边懒加载 mermaid 运行时。
 
 ## 迁移说明（0.3.0）
@@ -87,7 +87,7 @@ npm install @goodjin2/dsh-chat-area
 mermaid 渲染、答案卡片、会话尾部文件卡片在 0.3.0 从 `@goodjin2/dsh-acp-agent`
 迁到本包（agent 无关的通用会话区功能归本包，ACP 专属留在那边）。对应的旧行
 `@goodjin2/dsh-acp-agent/mermaid-asset` 在 acp-agent 0.3.0 已删除；从旧版本升上来
-时，把 profile 里这条旧行换成 `@goodjin2/dsh-chat-area/mermaid-asset`（或直接删掉，
+时，把 profile 里这条旧行换成 `@goodjin2/dsh-chat-power/mermaid-asset`（或直接删掉，
 由本包的 bundle patch 提供）。
 
 ## 开发
@@ -118,7 +118,7 @@ MIT
 ## 会话工具实现与迁移
 
 `conversation-tools.tsx` 负责入口、标签条和正文视图；`tools-state.ts` 管理每会话独立的
-标签（含「会话」标签）与 AbortSignal；`tools-adapter.tsx` 在私有服务和 `chat-area.tools.*`
+标签（含「会话」标签）与 AbortSignal；`tools-adapter.tsx` 在私有服务和 `chat-power.tools.*`
 座位中装配宿主功能工厂。文件树行控件（多选框 + 悬浮编辑）由 `file-tree-augment.tsx`
 在私有座位上重注册宿主 FilesBody 后以 DOM 覆盖层补挂；勾选引用的落地在
 `composer-references.ts`（优先宿主输入外壳，退回 execCommand）；发送侦测在
