@@ -3,13 +3,28 @@
 .chat[data-chat-strip-live] { flex:1 1 0; }
 .chat[hidden],.content[hidden],.body[hidden] { display:none; }
 .tools { display:flex; flex-direction:column; min-height:0; min-width:0; height:100%; }
-.toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:6px; padding:10px 16px; border-bottom:1px solid var(--ds-border,#8883); }
-.toolbar button,.toolbar select,.tabs button { color:inherit; background:transparent; border:1px solid var(--ds-border,#8883); border-radius:6px; padding:6px 10px; cursor:pointer; }
-.toolbar button[aria-pressed=true] { background:var(--ds-bg-hover,#8882); }
-.iconEntry { display:inline-flex; align-items:center; justify-content:center; width:30px; height:28px; padding:0; }
-.preference { margin-left:auto; font-size:12px; display:flex; gap:8px; align-items:center; }
-.tabs { display:flex; flex-wrap:wrap; gap:4px; align-items:center; min-width:0; }
-.tab { display:flex; gap:2px; }
-.tab [aria-selected=true] { background:var(--ds-bg-hover,#8882); }
-.content { position:relative; display:flex; flex:1; min-height:0; overflow:hidden; padding-left:24px; }
+
+/* 第一层：视图导航。固定 36px 高、不换行；会话与三个工具入口是同级视图开关，
+   右端是打开本机文件与「更多」。颜色走宿主语义 token。 */
+.viewRow { display:flex; align-items:center; gap:4px; flex:none; height:36px; padding:0 12px; border-bottom:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.12)); }
+.viewBtn { display:inline-flex; align-items:center; height:28px; padding:0 10px; border:none; border-radius:6px; background:transparent; color:var(--dsw-alias-label-secondary,inherit); font:inherit; font-size:12px; cursor:pointer; white-space:nowrap; }
+.viewBtn:hover { background:var(--dsw-alias-bg-hover,rgba(127,127,127,.12)); color:var(--dsw-alias-label-primary,inherit); }
+.viewBtn:focus-visible { outline:2px solid var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary,currentColor)); outline-offset:1px; }
+.viewBtn[aria-pressed=true] { background:var(--dsw-alias-bg-hover,rgba(127,127,127,.14)); color:var(--dsw-alias-label-primary,inherit); }
+.viewSpacer { flex:1; min-width:8px; }
+.iconEntry { display:inline-flex; align-items:center; justify-content:center; flex:none; width:32px; height:28px; padding:0; border:none; border-radius:6px; background:transparent; color:var(--dsw-alias-label-secondary,inherit); cursor:pointer; }
+.iconEntry:hover { background:var(--dsw-alias-bg-hover,rgba(127,127,127,.12)); color:var(--dsw-alias-label-primary,inherit); }
+.iconEntry:focus-visible { outline:2px solid var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary,currentColor)); outline-offset:1px; }
+
+/* 第二层：资源标签。单行横向滚动（不再换行把正文往下推）；标签名限宽省略。 */
+.tabs { display:flex; flex:none; gap:4px; align-items:center; min-width:0; overflow-x:auto; padding:4px 12px; scrollbar-width:thin; }
+.tab { display:flex; gap:2px; flex:none; max-width:180px; }
+.tab button { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:inherit; background:transparent; border:1px solid transparent; border-radius:6px; padding:4px 8px; font-size:12px; cursor:pointer; }
+.tab button:hover { background:var(--dsw-alias-bg-hover,rgba(127,127,127,.1)); }
+.tab [aria-selected=true] { background:var(--dsw-alias-bg-hover,rgba(127,127,127,.16)); }
+.tabClose { flex:none; color:var(--dsw-alias-label-secondary,inherit); }
+.tabClose:hover { color:var(--dsw-alias-label-primary,inherit); }
+
+/* 正文与工具行共用 12px 左缘（此前正文 24px / 工具栏 16px 边线不齐）。 */
+.content { position:relative; display:flex; flex:1; min-height:0; overflow:hidden; padding-left:12px; }
 .body { display:flex; flex-direction:column; flex:1; min-width:0; min-height:0; overflow:auto; }

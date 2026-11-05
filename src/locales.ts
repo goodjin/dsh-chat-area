@@ -41,6 +41,9 @@ export type ChatPowerLocaleKey =
   | 'selection.edit' | 'selection.multiAdd' | 'selection.editCount'
   | 'selection.removeItem'
   | 'selection.multiAdded' | 'selection.editTitle' | 'selection.multiEditTitle'
+  | 'tools.chat' | 'tools.files' | 'tools.browser' | 'tools.terminal'
+  | 'tools.openLocalFile' | 'tools.more' | 'tools.linkOpenDefault'
+  | 'fileTree.reference' | 'fileTree.editCopy'
 
 export const zh: Record<ChatPowerLocaleKey, string> = {
   'mermaid.label': 'Mermaid',
@@ -114,6 +117,15 @@ export const zh: Record<ChatPowerLocaleKey, string> = {
   'selection.multiAdded': '已加入多选（{count}）',
   'selection.editTitle': '编辑选中内容',
   'selection.multiEditTitle': '编辑多选内容',
+  'tools.chat': '会话',
+  'tools.files': '工作区文件',
+  'tools.browser': '浏览器',
+  'tools.terminal': '终端',
+  'tools.openLocalFile': '打开本机文件',
+  'tools.more': '更多',
+  'tools.linkOpenDefault': '网页链接打开方式',
+  'fileTree.reference': '引用 {path}',
+  'fileTree.editCopy': '编辑副本 {path}',
 }
 
 export const en: Record<ChatPowerLocaleKey, string> = {
@@ -188,6 +200,15 @@ export const en: Record<ChatPowerLocaleKey, string> = {
   'selection.multiAdded': 'Added to multi-select ({count})',
   'selection.editTitle': 'Edit selected text',
   'selection.multiEditTitle': 'Edit multi-selected text',
+  'tools.chat': 'Chat',
+  'tools.files': 'Workspace files',
+  'tools.browser': 'Browser',
+  'tools.terminal': 'Terminal',
+  'tools.openLocalFile': 'Open a local file',
+  'tools.more': 'More',
+  'tools.linkOpenDefault': 'Default link opening',
+  'fileTree.reference': 'Reference {path}',
+  'fileTree.editCopy': 'Edit copy of {path}',
 }
 
 /** `{name}` 形式的参数插值；模板里没有对应参数时原样保留占位符。 */

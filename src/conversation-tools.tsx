@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom'
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { IconFolderOpenOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconChevronDownOutlineRegular, IconFolderOpenOutlineRegular, IconRightUpOutlineRegular, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import { toolsState } from './tools-state.ts'
 import { createToolsAdapter, toolSlot } from './tools-adapter.tsx'
 import { attachFilesTreeAugment, hasHistoryForPhase, type AugmentHandlers } from './file-tree-augment.tsx'
@@ -12,9 +12,13 @@ import { LOCAL_FILE_ACCEPT, LOCAL_FILE_MAX_BYTES, LocalFileComposerCard } from '
 import { createMarkdownTurnReaders } from './markdown-turn-sources.ts'
 import { fallbackT } from './locales.ts'
 import { readDefaultLinkOpenMode, writeDefaultLinkOpenMode, openInBrowser } from './link-open.ts'
+import { statusNoticeClass } from './ui-theme.ts'
 import css from './conversation-tools.module.css'
 const ROOT = 'chat-power.tools'
 const BODY = toolSlot('sidebar.right.pane.tab')
+
+/** 草稿文本按「会话 + contentId」保管：关闭标签不删，重开同内容自动找回。 */
+const docKey = (sessionId: string, contentId: string): string => `${sessionId}:${contentId}`
 
 export function registerConversationTools(ctx: any) {
   if (typeof ctx.inject !== 'function') return
@@ -46,7 +50,7 @@ export function registerConversationTools(ctx: any) {
     ).then(text => {
       const name = path.split('/').at(-1) ?? path
       const tab = toolsState.open(sessionId, 'local', name, `edit://${path}`)
-      docs.set(tab.id, { name, text, seq: Date.now() })
+      docs.set(docKey(sessionId, tab.contentId), { name, text, seq: Date.now() })
       toolsState.select(sessionId, tab.id)
       toolsNotice.clear(sessionId)
     }, error => {
@@ -75,13 +79,14 @@ export function registerConversationTools(ctx: any) {
     const pick = useRef<HTMLInputElement>(null)
     const [error, setError] = useState('')
     const [mode, setMode] = useState(readDefaultLinkOpenMode)
+    const [moreOpen, setMoreOpen] = useState(false)
     const selectFile = async (file?: File) => {
       if (!file) return
       if (file.size > LOCAL_FILE_MAX_BYTES) { setError('文件超过 5 MB，请选择较小的文本文件。'); return }
       try {
         const text = await file.text()
         const tab = toolsState.open(id, 'local', file.name, `local://${crypto.randomUUID()}`)
-        docs.set(tab.id, { name: file.name, text, seq: Date.now() })
+        docs.set(docKey(id, tab.contentId), { name: file.name, text, seq: Date.now() })
         toolsState.select(id, tab.id)
         setError('')
       } catch (err) { setError(`读取失败：${String(err)}`) }
@@ -95,37 +100,69 @@ export function registerConversationTools(ctx: any) {
     const activeTab = s.tabs.find(t => t.id === s.active)
     const activeKind = activeTab?.kind
     const chipTabs = s.tabs.filter(tab => tab.kind === 'chat' || tab.kind === 'local' || tab.kind === 'text')
+    const viewLabel = { files: fallbackT('tools.files'), browser: fallbackT('tools.browser'), terminal: fallbackT('tools.terminal') } as const
     return <section className={css.tools} data-chat-tools="" aria-label="会话工具">
-      <div className={css.toolbar}>
-        <button type="button" className={css.iconEntry} aria-label="打开本机文件" title="打开本机文件" onClick={() => pick.current?.click()}>
+      {/* 第一层：视图导航（固定高度、不换行）。会话视图 + 三个工具入口；右端是
+          打开本机文件与「更多」（链接偏好收在这里，不再占常驻下拉）。 */}
+      <div className={css.viewRow}>
+        <button type="button" className={css.viewBtn} aria-pressed={activeKind === 'chat' || activeKind === undefined}
+          onClick={() => toolsState.activateChat(id)}>{fallbackT('tools.chat')}</button>
+        {(['files', 'browser', 'terminal'] as const).map(kind => <button key={kind} type="button" className={css.viewBtn}
+          aria-pressed={activeKind === kind} onClick={() => { openView(kind) }}>{viewLabel[kind]}</button>)}
+        <span className={css.viewSpacer} aria-hidden="true" />
+        <button type="button" className={css.iconEntry} aria-label={fallbackT('tools.openLocalFile')}
+          title={fallbackT('tools.openLocalFile')} onClick={() => pick.current?.click()}>
           <IconFolderOpenOutlineRegular size={16} />
         </button>
-        {(['files', 'browser', 'terminal'] as const).map(kind => <button key={kind} type="button" aria-pressed={activeKind === kind} onClick={() => {
-          openView(kind)
-        }}>{({ files: '工作区文件', browser: '浏览器', terminal: '终端' })[kind]}</button>)}
-        <div className={css.tabs} role="tablist" aria-label="会话区标签">
-          {chipTabs.map(tab => <div className={css.tab} key={tab.id}>
-            <button role="tab" aria-selected={s.active === tab.id} onClick={() => toolsState.select(id, tab.id)}>{tab.title}</button>
-            {tab.kind !== 'chat' && <button aria-label={`关闭 ${tab.title}`} onClick={() => { adapter.close(id, tab.id); docs.delete(tab.id) }}>×</button>}
-          </div>)}
-        </div>
-        <label className={css.preference}>链接默认打开 <select aria-label="链接默认打开方式" value={mode} onChange={e => {
-          const value = e.target.value as 'right' | 'browser'; writeDefaultLinkOpenMode(value); setMode(value)
-        }}><option value="right">内置浏览器</option><option value="browser">外部浏览器</option></select></label>
+        <Menu
+          open={moreOpen}
+          portal
+          dense
+          align="end"
+          onClose={() => { setMoreOpen(false) }}
+          items={[
+            { type: 'label', id: 'link-mode-label', text: fallbackT('tools.linkOpenDefault') },
+            { id: 'link-right', icon: <IconRightUpOutlineRegular />, label: fallbackT('markdownTurn.linkOpenRight') },
+            { id: 'link-browser', icon: <IconFolderOpenOutlineRegular />, label: fallbackT('markdownTurn.linkOpenBrowser') },
+          ]}
+          selectedId={mode === 'browser' ? 'link-browser' : 'link-right'}
+          anchor={<button type="button" className={css.iconEntry} aria-haspopup="menu" aria-expanded={moreOpen}
+            aria-label={fallbackT('tools.more')} title={fallbackT('tools.more')} onClick={() => { setMoreOpen(value => !value) }}>
+            <IconChevronDownOutlineRegular size={14} />
+          </button>}
+          onSelect={(selected: string | number) => {
+            if (selected === 'link-right') { writeDefaultLinkOpenMode('right'); setMode('right') }
+            else if (selected === 'link-browser') { writeDefaultLinkOpenMode('browser'); setMode('browser') }
+            setMoreOpen(false)
+          }}
+        />
         <input ref={pick} hidden type="file" accept={LOCAL_FILE_ACCEPT} onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; void selectFile(f) }} />
       </div>
-      {(error !== '' || notice !== '') && <p role="alert">{error !== '' ? error : notice}</p>}
+      {/* 第二层：资源标签（会话 / 本机文件 / 工作区文本），单行横向滚动。 */}
+      <div className={css.tabs} role="tablist" aria-label="会话区标签">
+        {chipTabs.map(tab => <div className={css.tab} key={tab.id}>
+          <button role="tab" aria-selected={s.active === tab.id} title={tab.title}
+            onClick={() => toolsState.select(id, tab.id)}>{tab.title}</button>
+          {tab.kind !== 'chat' && <button className={css.tabClose} aria-label={`关闭 ${tab.title}`}
+            onClick={() => adapter.close(id, tab.id)}>×</button>}
+        </div>)}
+      </div>
+      {(error !== '' || notice !== '') && <p role="alert" className={statusNoticeClass} data-variant="error">{error !== '' ? error : notice}</p>}
       <div className={css.content} data-chat-tools-bodies="">
         {s.tabs.map(tab => {
           if (tab.kind === 'chat') return null
           const visible = tab.id === s.active
           const definition = adapter.definitions.get(tab.kind)
           const info = adapter.tabInfo(id, tab, visible)
+          const doc = docs.get(docKey(id, tab.contentId))
           return <div key={tab.id} hidden={!visible} className={css.body}>
-            {tab.kind === 'local' && docs.has(tab.id)
-              ? <LocalFileComposerCard variant="tab" doc={docs.get(tab.id)!} readers={readers} t={fallbackT} sessionId={id}
-                  onDraftChange={text => { const doc = docs.get(tab.id); if (doc) docs.set(tab.id, { ...doc, text }) }}
-                  onSent={() => toolsState.activateChat(id)} onClose={() => { adapter.close(id, tab.id); docs.delete(tab.id) }} />
+            {tab.kind === 'local' && doc !== undefined
+              ? <LocalFileComposerCard variant="tab" doc={doc} readers={readers} t={fallbackT} sessionId={id}
+                  onDraftChange={text => {
+                    docs.set(docKey(id, tab.contentId), { ...doc, text, seq: Date.now() })
+                    toolsState.markDraft(id, tab.id, true)
+                  }}
+                  onSent={() => toolsState.activateChat(id)} onClose={() => { adapter.close(id, tab.id); docs.delete(docKey(id, tab.contentId)) }} />
               : definition && props.renderSlot(BODY, {}, { entryKey: definition.id, hookContext: () => info })}
           </div>
         })}
@@ -301,7 +338,12 @@ export function registerConversationTools(ctx: any) {
       const id = currentId(); if (!id) return
       event.preventDefault(); event.stopImmediatePropagation()
       if (readDefaultLinkOpenMode() === 'browser') { openInBrowser(url.href); return }
-      for (const tab of toolsState.get(id).tabs.filter(t => t.kind === 'browser')) adapter.close(id, tab.id)
+      // 复用策略：普通外链只让位**最近一个**内置浏览器标签（腾出宿主工厂的
+      // 单页面位），其余浏览器标签原样保留——此前批量关闭会丢掉用户正在
+      // 阅读的页面。
+      const browserTabs = toolsState.get(id).tabs.filter(t => t.kind === 'browser')
+      const latest = browserTabs.at(-1)
+      if (latest !== undefined) adapter.close(id, latest.id)
       adapter.open(id, 'browser', { params: { url: url.href } })
     }
     document.addEventListener('click', click, true)

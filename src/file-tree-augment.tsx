@@ -13,6 +13,7 @@
 import { createElement, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import augmentCss from './file-tree-augment.module.css'
+import { fallbackT } from './locales.ts'
 
 /** 私有座位名（宿主 `sidebar.right.pane.tab` 经 toolSlot 映射后的名字）。 */
 export const FILES_PANE_SLOT = 'chat-power.tools.sidebar.right.pane.tab'
@@ -110,6 +111,9 @@ export function attachFilesTreeAugment(slots: AugmentSlots, handlers: () => Augm
 const CHECK_ATTR = 'data-chat-file-check'
 const EDIT_ATTR = 'data-chat-file-edit'
 
+/** 「编辑副本」的铅笔描边图标（与选区弹条同款风格，颜色随文字）。 */
+const EDIT_ICON_SVG = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M11.2 2.2a1.6 1.6 0 0 1 2.6 2.6L6 12.5l-3.5.9.9-3.5 7.8-7.7Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>'
+
 /**
  * 文件树容器：渲染原生 FilesBody，并给每个文件行补挂多选框与悬浮编辑按钮。
  * 重新装饰靠 MutationObserver；事件在容器上委托。
@@ -132,14 +136,14 @@ export function FilesTreeAugment(props: { handlers: AugmentHandlers; children?: 
         check.setAttribute(CHECK_ATTR, '')
         check.checked = handlersRef.current.checked(path)
         check.setAttribute('data-chat-file-path', path)
-        check.setAttribute('aria-label', `引用 ${path}`)
+        check.setAttribute('aria-label', fallbackT('fileTree.reference', { path }))
         const edit = document.createElement('button')
         edit.type = 'button'
         edit.setAttribute(EDIT_ATTR, '')
         edit.setAttribute('data-chat-file-path', path)
-        edit.setAttribute('aria-label', `编辑 ${path}`)
-        edit.title = `编辑 ${path}`
-        edit.textContent = '编辑'
+        edit.setAttribute('aria-label', fallbackT('fileTree.editCopy', { path }))
+        edit.title = fallbackT('fileTree.editCopy', { path })
+        edit.innerHTML = EDIT_ICON_SVG
         row.prepend(check)
         row.append(edit)
       }

@@ -143,6 +143,11 @@ describe('统一编辑链路', () => {
       expect(read(file)).toContain('compose.copyHint')
     }
   })
+
+  it('链接偏好收进更多菜单：工具栏不再有 select，文件打开菜单不再写全局偏好', () => {
+    expect(read('../src/conversation-tools.tsx')).not.toContain('<select')
+    expect(read('../src/markdown-turn-open.tsx')).not.toContain('writeDefaultLinkOpenMode')
+  })
 })
 
 describe('统一发送控制器', () => {
