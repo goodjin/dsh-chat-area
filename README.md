@@ -2,6 +2,12 @@
 
 DSH 会话区增强插件：与跑哪种 agent 无关的会话区功能都归这里。
 
+> **开发与排障请先查官方文档**：本插件的宿主契约（客户端模块、Slots、会话投影、对话组装等）
+> 以 DeepSeek Harness 官方文档为准。本地镜像见
+> [`../docs/official/README.md`](../docs/official/README.md)（含按场景的导航表），
+> 线上版本见 <https://deepseek-harness.github.io/deepseek-harness/>。
+> 排查「功能不见了」「界面整块不生效」「事件不触发」前先查对应章节。
+
 ## 装上会发生什么
 
 - **会话区标签工作台**：会话区域顶部是常驻的标签条（工具行 + 标签行），聊天本身是
