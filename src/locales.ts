@@ -41,6 +41,7 @@ export type ChatPowerLocaleKey =
   | 'markdownTurn.copyAll'
   | 'compose.sendCurrent' | 'compose.sendNewSession' | 'compose.copyHint'
   | 'selection.addToChat' | 'selection.sendToChat' | 'selection.fillFailed'
+  | 'selection.quote' | 'selection.toolbarLabel'
   | 'selection.edit' | 'selection.multiAdd' | 'selection.editCount'
   | 'selection.removeItem'
   | 'selection.multiAdded' | 'selection.editTitle' | 'selection.multiEditTitle'
@@ -121,6 +122,8 @@ export const zh: Record<ChatPowerLocaleKey, string> = {
   'selection.addToChat': '添加到会话',
   'selection.sendToChat': '发送会话',
   'selection.fillFailed': '没有找到输入框',
+  'selection.quote': '引用',
+  'selection.toolbarLabel': '选区操作',
   'selection.edit': '编辑',
   'selection.multiAdd': '多选',
   'selection.editCount': '编辑 ({count})',
@@ -212,6 +215,8 @@ export const en: Record<ChatPowerLocaleKey, string> = {
   'selection.addToChat': 'Add to chat',
   'selection.sendToChat': 'Send to chat',
   'selection.fillFailed': 'Composer not found',
+  'selection.quote': 'Quote',
+  'selection.toolbarLabel': 'Selection actions',
   'selection.edit': 'Edit',
   'selection.multiAdd': 'Multi-select',
   'selection.editCount': 'Edit ({count})',

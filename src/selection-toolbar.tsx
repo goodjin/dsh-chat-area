@@ -1,0 +1,242 @@
+/**
+ * 会话选区工具栏：占住宿主文本交互座位 `conversation.chat.text-interaction`。
+ *
+ * 宿主 0.2.2 起把「选中文字 → 弹出引用钮」做成了标准座位：用户选区稳定后，
+ * 宿主的 useTextInteraction 钩子派发手势，第一个开台的交互 id 胜出，然后在
+ * `[data-text-interaction-surface]` 浮层里用 `entryKey` 渲染胜出插件的座位项。
+ * 官方引用钮（`@deepseek-ai/dsh-message-quotes`）就是其中一个 occupant，key 为
+ * `quote`，点它调 `inputActions.insertQuote` 把选中文字变成输入框里的引用卡。
+ *
+ * **占位的办法**：本组件往同一个座位注册一个 **key 仍为 `quote`** 的 React 组件——
+ * 座位按 key 寻址，同名 key 后者顶替前者，于是本组件替换掉官方引用钮，但**交互
+ * 规则**（何时弹、弹在哪、会话是否可写）仍复用官方那条 `quote` 交互（本组件不
+ * 注册交互，白拿它的准入判断）。效果：
+ * - 选中文字 → 宿主表面弹出**一条**工具栏：`引用 · 添加到会话 · 发送会话 · 编辑 · 多选`；
+ * - 「引用」走 `inputActions.insertQuote`，**与官方效果完全一致**（同一个 QuoteNode、
+ *   输入框里同一张可移除引用卡、发送时同一套 Markdown 引用块序列化）；
+ * - 后四钮复用本包 store（openSelectionEdit / addMultiItem / remote.sendToSession）。
+ *
+ * 定位、收台、读选中文字全由宿主 useTextInteraction 提供，本组件不管位置。
+ *
+ * 为什么后四钮也放这儿：宿主表面是「单选」的——同一时刻只有一个交互能占据它。
+ * 本组件顶替了官方引用钮，就也得自带「添加到会话/发送/编辑/多选」，否则那些功能
+ * 会随官方钮一起消失。多选收集面板是独立浮层（跨多次选择续存），由
+ * selection-actions.ts 的 startMultiSelectPanel 单独驱动，不挂本组件。
+ */
+import { createElement } from 'react'
+import type { ComponentType, ReactElement } from 'react'
+import { IconEditOutlineRegular, IconSendOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import {
+  addMultiItem,
+  composeFillAppend,
+  currentSessionIdFromDom,
+  openSelectionEdit,
+} from './selection-actions.ts'
+import type { RuntimeT } from './locales.ts'
+import { NAMESPACE } from './locales.ts'
+import css from './selection-toolbar.module.css'
+
+/** 座位项 key：与官方引用钮同名，顶替它占住文本交互表面。 */
+export const SELECTION_TOOLBAR_KEY = 'quote'
+
+/** 发送动作签名：发往指定会话的正文（队列模式，与文件阅读区同一条通道）。 */
+export type SelectionSend = (sessionId: string, text: string) => void
+
+/** 「引用」图标（描边，与官方引用卡引号同一语汇；颜色随文字）。 */
+const ICON_QUOTE = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3.5c-2 0-3.5 1.6-3.5 3.7 0 2 1.4 3.3 3.1 3.3.3 0 .6 0 .7-.1-.3 1.3-1.4 2.4-2.8 2.7l.6 1.1c2.7-.7 4.6-3 4.6-6.1 0-2.6-1.4-4.6-3.7-4.6Zm6.4 0c-2 0-3.5 1.6-3.5 3.7 0 2 1.4 3.3 3.1 3.3.3 0 .6 0 .7-.1-.3 1.3-1.4 2.4-2.8 2.7l.6 1.1c2.7-.7 4.6-3 4.6-6.1 0-2.6-1.4-4.6-3.7-4.6Z" fill="currentColor"/></svg>'
+
+/** 「添加到会话」的加号图标（描边，颜色随文字）。 */
+const ICON_PLUS = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
+
+/** 「多选」图标（叠层，与旧弹条同名；颜色随文字）。 */
+const ICON_LAYERS = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M3 10.5V3.8C3 3.4 3.4 3 3.8 3h6.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>'
+
+/** 工具栏按钮定义：动作 id、图标（空串表示用 primitives 组件）、文案键。 */
+interface ToolbarButton {
+  readonly action: string
+  readonly icon: string
+  readonly labelKey: string
+}
+
+/** 五个按钮，顺序与旧弹条一致：引用（官方同位）在前，其余随后。 */
+const BUTTONS: readonly ToolbarButton[] = [
+  { action: 'quote', icon: ICON_QUOTE, labelKey: 'selection.quote' },
+  { action: 'add-to-chat', icon: ICON_PLUS, labelKey: 'selection.addToChat' },
+  { action: 'send-to-chat', icon: '', labelKey: 'selection.sendToChat' },
+  { action: 'edit-selection', icon: '', labelKey: 'selection.edit' },
+  { action: 'multi-add', icon: ICON_LAYERS, labelKey: 'selection.multiAdd' },
+]
+
+/** 图标名 → 组件（宿主 primitives 提供的描边图标）。 */
+const ICON_COMPONENTS: Record<string, ComponentType<{ size?: number }>> = {
+  'send-to-chat': IconSendOutlineRegular,
+  'edit-selection': IconEditOutlineRegular,
+}
+
+/**
+ * 把选中文字追加到输入框草稿：光标塌缩到 composer 末尾后走 insertText——Lexical
+ * 经 beforeinput 正确接住，草稿与未发送提示保持原生行为。（与旧弹条同路数。）
+ * @param text - 选中的文字。
+ * @returns 是否成功填入。
+ */
+export function fillComposerWith(text: string): boolean {
+  const composer = document.querySelector<HTMLElement>('[data-composer-input]')
+  if (composer === null || typeof document.execCommand !== 'function') return false
+  composer.focus()
+  // 光标塌缩到 composer 内容的**末尾**，再走 insertText 追加。不能「全选 + 整段替换」：
+  // Lexical 维护自己的内容模型，DOM 层的范围替换会被它的模型校验拒绝并回滚。
+  const range = document.createRange()
+  range.selectNodeContents(composer)
+  range.collapse(false)
+  const selection = window.getSelection()
+  selection?.removeAllRanges()
+  selection?.addRange(range)
+  const existing = composer.textContent ?? ''
+  return document.execCommand('insertText', false, composeFillAppend(existing, text))
+}
+
+/** 宿主座位项拿到的 props：表面手势 + 注入的服务（与官方引用钮同款）。 */
+export interface TextInteractionProps {
+  /** 触发来源（选区 / 右键）；本工具栏只在选区触发时出现。 */
+  trigger?: string
+  /** 读当前选中的文字；不在选区时返回 null。 */
+  readText: () => string | null
+  /** 收台：隐藏表面。 */
+  dismiss: () => void
+  /** 清掉浏览器选区。 */
+  clearSelection: () => void
+  /** 输入框动作面：insertQuote 与官方引用钮同一条路。 */
+  inputActions?: { insertQuote(text: string): boolean }
+  /** 会话订阅器（官方引用钮用它判断是否可写；本工具栏复用同一准入）。 */
+  useSession?: unknown
+  /** 绑定本包词典的翻译函数。 */
+  t?: RuntimeT
+  /** 发送动作（注册时经闭包注入；缺省时发送钮静默收台）。 */
+  send?: SelectionSend
+}
+
+/**
+ * 选区工具栏组件。宿主在表面里渲染它（entryKey=`quote`），点击后自行收台。
+ * @param props - 表面手势、注入服务与发送动作。
+ * @returns 工具栏 JSX。
+ */
+export function SelectionToolbar(props: TextInteractionProps): ReactElement {
+  const { readText, dismiss, clearSelection, inputActions, t, send } = props
+  const translate = t ?? ((key: string) => key)
+
+  const run = (action: string): void => {
+    const text = readText()
+    if (text === null || text === '') { dismiss(); return }
+    const sessionId = currentSessionIdFromDom()
+    switch (action) {
+      case 'quote':
+        // 与官方引用钮完全同位、同效：insertQuote → 清选区 → 收台。
+        if (inputActions?.insertQuote(text) === false) return
+        clearSelection()
+        dismiss()
+        return
+      case 'add-to-chat': {
+        if (!fillComposerWith(text)) { toast(translate('selection.fillFailed')); return }
+        clearSelection()
+        dismiss()
+        return
+      }
+      case 'send-to-chat':
+        // 发送走 remote（队列模式，与文件阅读区同一条通道）。readers 在注册时
+        // 经闭包注入；拿不到就静默收台。
+        if (send !== undefined && sessionId !== undefined) send(sessionId, text)
+        clearSelection()
+        dismiss()
+        return
+      case 'edit-selection':
+        openSelectionEdit(text, false, sessionId)
+        clearSelection()
+        dismiss()
+        return
+      case 'multi-add': {
+        const sel = window.getSelection()
+        if (sel === null || sel.rangeCount === 0) { dismiss(); return }
+        addMultiItem(text, sel.getRangeAt(0).cloneRange(), sessionId)
+        clearSelection()
+        dismiss()
+        return
+      }
+    }
+  }
+
+  return createElement('div', {
+    className: css.selbar,
+    'data-dshcaSelbar': '',
+    role: 'toolbar',
+    'aria-label': translate('selection.toolbarLabel'),
+  },
+    BUTTONS.flatMap((button, index) => {
+      const label = translate(button.labelKey)
+      const IconComponent = ICON_COMPONENTS[button.action]
+      const children = [
+        button.icon !== ''
+          ? createElement('span', { className: css.icon, key: 'icon', dangerouslySetInnerHTML: { __html: button.icon } })
+          : null,
+        IconComponent !== undefined
+          ? createElement(IconComponent, { size: 14, key: 'icon-component' })
+          : null,
+        createElement('span', { className: css.label, key: 'label' }, label),
+      ].filter(Boolean)
+      const items: (ReactElement | string)[] = [
+        createElement('button', {
+          key: button.action,
+          type: 'button',
+          className: css.btn,
+          'data-action': button.action,
+          onClick: () => { run(button.action) },
+        }, children),
+      ]
+      // 引用钮与「添加到会话」之间放一道细分隔线，呼应官方单钮与新组的层次。
+      if (index === 0) items.push(createElement('span', { key: 'divider', className: css.divider, 'aria-hidden': 'true' }))
+      return items
+    }),
+  )
+}
+
+/** 轻提示（toast）：只用于「没有找到输入框」等短反馈。 */
+function toast(text: string): void {
+  const el = document.createElement('div')
+  el.className = 'dshca-toast'
+  el.textContent = text
+  document.body.appendChild(el)
+  window.setTimeout(() => { el.remove() }, 2200)
+}
+
+/** 注册 seats 宿主回调的最小结构（与 session-id-bar 同款抽象）。 */
+interface TextInteractionSlotHost {
+  inject(key: string, callback: () => unknown): unknown
+  register(options: Record<string, unknown>, component: unknown): unknown
+}
+
+/**
+ * 把选区工具栏注册进宿主文本交互座位，顶替官方引用钮。
+ *
+ * **不**注册交互——官方 `quote` 交互仍管「何时弹、弹在哪、会话是否可写」，本组件
+ * 只是它开台后渲染的那个 occupant（同 key 顶替）。座位**必须先声明**才能 register：
+ * 宿主 0.2.2 的 conversation.chat.text-interaction 是 keyed 座位，注册前若未声明
+ * 会抛、inject 回调永不触发（静默不渲染，2026-11 现场）。
+ *
+ * @param slots - 座位宿主（`ctx.slots`）。
+ * @param t - 绑定本包词典的翻译函数。
+ * @param send - 发送动作（读不到 remote 时缺省，发送钮静默收台）。
+ * @returns 注册的清理函数。
+ */
+export function registerSelectionToolbar(
+  slots: TextInteractionSlotHost,
+  t: RuntimeT,
+  send?: SelectionSend,
+): () => void {
+  return slots.inject('conversation.chat.text-interaction', () => slots.register(
+    {
+      name: 'conversation.chat.text-interaction',
+      key: SELECTION_TOOLBAR_KEY,
+      locale: NAMESPACE,
+    },
+    (props: TextInteractionProps) => createElement(SelectionToolbar, { ...props, t, send }),
+  )) as () => void
+}
