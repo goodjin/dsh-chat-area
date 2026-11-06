@@ -1,12 +1,14 @@
 import { createPortal } from 'react-dom'
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { IconChevronDownOutlineRegular, IconFolderOpenOutlineRegular, IconRightUpOutlineRegular, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
-import { toolsState, resourceTabs } from './tools-state.ts'
+import { toolsState } from './tools-state.ts'
 import { createToolsAdapter, toolSlot } from './tools-adapter.tsx'
+import { attachToolsRow } from './tools-tabs.ts'
 import { attachFilesTreeAugment, hasHistoryForPhase, type AugmentHandlers } from './file-tree-augment.tsx'
 import { checkedFiles, toolsNotice } from './checked-files.ts'
 import { createReferenceApplier } from './composer-references.ts'
 import { readEntireWorkspaceText } from './workspace-text.ts'
+import { saveWorkspaceText } from './workspace-save.ts'
 import { startSendWatch, USER_NODE_SELECTOR } from './send-watch.ts'
 import { LOCAL_FILE_ACCEPT, LOCAL_FILE_MAX_BYTES, LocalFileComposerCard } from './local-file.tsx'
 import { createMarkdownTurnReaders } from './markdown-turn-sources.ts'
@@ -26,6 +28,15 @@ export function registerConversationTools(ctx: any) {
   const readers = createMarkdownTurnReaders(() => ctx.get('remote'))
   const docs = new Map<string, { name: string; text: string; seq: number }>()
   const currentId = () => ctx.get('uiSession')?.adapter.current.getSnapshot().key as string | undefined
+  // 退出文件编辑：丢弃草稿（暂存文本移除、草稿标记清除），再关标签。
+  // 重开同一路径会重新读文件，不会悄悄找回旧草稿。
+  const closeDocument = (sessionId: string, tabId: string): void => {
+    const tab = toolsState.get(sessionId).tabs.find(t => t.id === tabId)
+    if (tab === undefined) return
+    docs.delete(docKey(sessionId, tab.contentId))
+    toolsState.markDraft(sessionId, tabId, false)
+    adapter.close(sessionId, tabId)
+  }
   // 勾选 → 输入框引用：优先走宿主输入外壳（引用渲染成卡片 chip），
   // 外壳不可达退回 execCommand 插入纯文本提及（选区弹条同款通道）。
   const applyReference = createReferenceApplier({
@@ -49,7 +60,8 @@ export function registerConversationTools(ctx: any) {
       controller.signal,
     ).then(text => {
       const name = path.split('/').at(-1) ?? path
-      const tab = toolsState.open(sessionId, 'local', name, `edit://${path}`)
+      // contentId 里的路径做过编码：读取侧要对称解码（带 % 或非 ASCII 的文件名）。
+      const tab = toolsState.open(sessionId, 'local', name, `edit://${encodeURIComponent(path)}`)
       docs.set(docKey(sessionId, tab.contentId), { name, text, seq: Date.now() })
       toolsState.select(sessionId, tab.id)
       toolsNotice.clear(sessionId)
@@ -71,82 +83,19 @@ export function registerConversationTools(ctx: any) {
     onEdit: (sessionId, path) => openWorkspaceEditor(sessionId, path),
     subscribeChanges: listener => checkedFiles.subscribe(listener),
   })
+  // 打开（或聚焦）一个会话视图：同种类标签已开就选中，没有才新建。
+  const openKind = (sessionId: string, kind: 'files' | 'browser' | 'terminal'): void => {
+    const existing = toolsState.get(sessionId).tabs.find(t => t.kind === kind)
+    if (existing !== undefined) { toolsState.select(sessionId, existing.id); return }
+    try { adapter.open(sessionId, kind) } catch (error) { toolsNotice.set(sessionId, String(error)) }
+  }
   function ToolArea(props: any) {
     const id = props.sessionId as string
     const s = useSyncExternalStore(toolsState.subscribe, () => toolsState.get(id), () => toolsState.get(id))
     const notice = useSyncExternalStore(toolsNotice.subscribe, () => toolsNotice.get(id), () => toolsNotice.get(id))
-    const pick = useRef<HTMLInputElement>(null)
-    const [error, setError] = useState('')
-    const [mode, setMode] = useState(readDefaultLinkOpenMode)
-    const [moreOpen, setMoreOpen] = useState(false)
-    const selectFile = async (file?: File) => {
-      if (!file) return
-      if (file.size > LOCAL_FILE_MAX_BYTES) { setError('文件超过 5 MB，请选择较小的文本文件。'); return }
-      try {
-        const text = await file.text()
-        const tab = toolsState.open(id, 'local', file.name, `local://${crypto.randomUUID()}`)
-        docs.set(docKey(id, tab.contentId), { name: file.name, text, seq: Date.now() })
-        toolsState.select(id, tab.id)
-        setError('')
-      } catch (err) { setError(`读取失败：${String(err)}`) }
-    }
-    // 视图开关：工作区文件/浏览器/终端是独占视图（按钮即入口，不产生额外标签片）。
-    const openView = (kind: 'files' | 'browser' | 'terminal') => {
-      const existing = s.tabs.find(t => t.kind === kind)
-      if (existing !== undefined) { toolsState.select(id, existing.id); return }
-      try { adapter.open(id, kind) } catch (err) { setError(String(err)) }
-    }
     const activeTab = s.tabs.find(t => t.id === s.active)
-    const activeKind = activeTab?.kind
-    const chipTabs = resourceTabs(s.tabs)
-    const viewLabel = { files: fallbackT('tools.files'), browser: fallbackT('tools.browser'), terminal: fallbackT('tools.terminal') } as const
     return <section className={css.tools} data-chat-tools="" aria-label="会话工具">
-      {/* 第一层：视图导航（固定高度、不换行）。会话视图 + 三个工具入口；右端是
-          打开本机文件与「更多」（链接偏好收在这里，不再占常驻下拉）。 */}
-      <div className={css.viewRow}>
-        <button type="button" className={css.viewBtn} aria-pressed={activeKind === 'chat' || activeKind === undefined}
-          onClick={() => toolsState.activateChat(id)}>{fallbackT('tools.chat')}</button>
-        {(['files', 'browser', 'terminal'] as const).map(kind => <button key={kind} type="button" className={css.viewBtn}
-          aria-pressed={activeKind === kind} onClick={() => { openView(kind) }}>{viewLabel[kind]}</button>)}
-        <span className={css.viewSpacer} aria-hidden="true" />
-        <button type="button" className={css.iconEntry} aria-label={fallbackT('tools.openLocalFile')}
-          title={fallbackT('tools.openLocalFile')} onClick={() => pick.current?.click()}>
-          <IconFolderOpenOutlineRegular size={16} />
-        </button>
-        <Menu
-          open={moreOpen}
-          portal
-          dense
-          align="end"
-          onClose={() => { setMoreOpen(false) }}
-          items={[
-            { type: 'label', id: 'link-mode-label', text: fallbackT('tools.linkOpenDefault') },
-            { id: 'link-right', icon: <IconRightUpOutlineRegular />, label: fallbackT('markdownTurn.linkOpenRight') },
-            { id: 'link-browser', icon: <IconFolderOpenOutlineRegular />, label: fallbackT('markdownTurn.linkOpenBrowser') },
-          ]}
-          selectedId={mode === 'browser' ? 'link-browser' : 'link-right'}
-          anchor={<button type="button" className={css.iconEntry} aria-haspopup="menu" aria-expanded={moreOpen}
-            aria-label={fallbackT('tools.more')} title={fallbackT('tools.more')} onClick={() => { setMoreOpen(value => !value) }}>
-            <IconChevronDownOutlineRegular size={14} />
-          </button>}
-          onSelect={(selected: string | number) => {
-            if (selected === 'link-right') { writeDefaultLinkOpenMode('right'); setMode('right') }
-            else if (selected === 'link-browser') { writeDefaultLinkOpenMode('browser'); setMode('browser') }
-            setMoreOpen(false)
-          }}
-        />
-        <input ref={pick} hidden type="file" accept={LOCAL_FILE_ACCEPT} onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; void selectFile(f) }} />
-      </div>
-      {/* 第二层：资源标签（会话 / 本机文件 / 工作区文本），单行横向滚动。 */}
-      <div className={css.tabs} role="tablist" aria-label="会话区标签">
-        {chipTabs.map(tab => <div className={css.tab} key={tab.id}>
-          <button role="tab" aria-selected={s.active === tab.id} title={tab.title}
-            onClick={() => toolsState.select(id, tab.id)}>{tab.title}</button>
-          {tab.kind !== 'chat' && <button className={css.tabClose} aria-label={`关闭 ${tab.title}`}
-            onClick={() => adapter.close(id, tab.id)}>×</button>}
-        </div>)}
-      </div>
-      {(error !== '' || notice !== '') && <p role="alert" className={statusNoticeClass} data-variant="error">{error !== '' ? error : notice}</p>}
+      {(notice !== '') && <p role="alert" className={statusNoticeClass} data-variant="error">{notice}</p>}
       <div className={css.content} data-chat-tools-bodies="" data-chat-tools-session={id}>
         {s.tabs.map(tab => {
           if (tab.kind === 'chat') return null
@@ -162,9 +111,13 @@ export function registerConversationTools(ctx: any) {
                     toolsState.markDraft(id, tab.id, true)
                   }}
                   onSent={() => toolsState.activateChat(id)}
-                  // 卡内「取消」只关标签：docs 里的草稿文本保留（按 contentId），
-                  // 重开同一路径自动找回——不静默丢草稿。
-                  onClose={() => adapter.close(id, tab.id)} />
+                  // 仅保存：来自工作区文件的编辑写回原文件（受限写回通道，不发送）；
+                  // 本机文件没有可写回路径，不提供保存。
+                  onSave={tab.contentId.startsWith('edit://')
+                    ? (text: string) => saveWorkspaceText(id, decodeURIComponent(tab.contentId.slice('edit://'.length)), text)
+                    : undefined}
+                  // 卡内「退出编辑」直接丢弃草稿：暂存文本移除，重开重新读文件。
+                  onClose={() => closeDocument(id, tab.id)} />
               : definition && props.renderSlot(BODY, {}, { entryKey: definition.id, hookContext: () => info })}
           </div>
         })}
@@ -300,6 +253,82 @@ export function registerConversationTools(ctx: any) {
     [toolSlot('sidebar.right.pane.tab.title')]: { kind: 'keyed', scope: 'session', inject: { hooks: { tabInfo: (_: any, hook: any) => hook } } },
     [toolSlot('sidebar.right.tab.guide.entry')]: { kind: 'keyed', scope: 'session' },
   } }, ToolArea))
+  // 会话头部动作槽位：打开本机文件 + 链接偏好「更多」菜单。
+  // 工具标签并进宿主标签行后，这两个入口不再占标签行的位置。
+  function HeaderToolsEntry(props: { readonly sessionId?: string }) {
+    const id = props.sessionId
+    const pick = useRef<HTMLInputElement>(null)
+    const [mode, setMode] = useState(readDefaultLinkOpenMode)
+    const [moreOpen, setMoreOpen] = useState(false)
+    if (id === undefined || id === '') return null
+    const selectFile = async (file?: File) => {
+      if (!file) return
+      if (file.size > LOCAL_FILE_MAX_BYTES) { toolsNotice.set(id, '文件超过 5 MB，请选择较小的文本文件。'); return }
+      try {
+        const text = await file.text()
+        const tab = toolsState.open(id, 'local', file.name, `local://${crypto.randomUUID()}`)
+        docs.set(docKey(id, tab.contentId), { name: file.name, text, seq: Date.now() })
+        toolsState.select(id, tab.id)
+        toolsNotice.clear(id)
+      } catch (err) { toolsNotice.set(id, `读取失败：${String(err)}`) }
+    }
+    return <>
+      <button type="button" className={css.iconEntry} aria-label={fallbackT('tools.openLocalFile')}
+        title={fallbackT('tools.openLocalFile')} onClick={() => pick.current?.click()}>
+        <IconFolderOpenOutlineRegular size={16} />
+      </button>
+      <Menu
+        open={moreOpen}
+        portal
+        dense
+        align="end"
+        onClose={() => { setMoreOpen(false) }}
+        items={[
+          { type: 'label', id: 'link-mode-label', text: fallbackT('tools.linkOpenDefault') },
+          { id: 'link-right', icon: <IconRightUpOutlineRegular />, label: fallbackT('markdownTurn.linkOpenRight') },
+          { id: 'link-browser', icon: <IconFolderOpenOutlineRegular />, label: fallbackT('markdownTurn.linkOpenBrowser') },
+        ]}
+        selectedId={mode === 'browser' ? 'link-browser' : 'link-right'}
+        anchor={<button type="button" className={css.iconEntry} aria-haspopup="menu" aria-expanded={moreOpen}
+          aria-label={fallbackT('tools.more')} title={fallbackT('tools.more')} onClick={() => { setMoreOpen(value => !value) }}>
+          <IconChevronDownOutlineRegular size={14} />
+        </button>}
+        onSelect={(selected: string | number) => {
+          if (selected === 'link-right') { writeDefaultLinkOpenMode('right'); setMode('right') }
+          else if (selected === 'link-browser') { writeDefaultLinkOpenMode('browser'); setMode('browser') }
+          setMoreOpen(false)
+        }}
+      />
+      <input ref={pick} hidden type="file" accept={LOCAL_FILE_ACCEPT} onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; void selectFile(f) }} />
+    </>
+  }
+  ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({
+    name: 'conversation.session.header.actions',
+    id: 'chat-power-tools-entry',
+    inject: (sessionId: string) => ({ sessionId }),
+  }, HeaderToolsEntry))
+  // 工具标签并入宿主「对话 / 轨迹」行：在宿主渲染出来的标签行上补挂自己的标签。
+  // 文件标签的关闭走丢弃草稿的关闭；其余标签直接关。
+  ctx.effect(() => attachToolsRow({
+    snapshot: id => toolsState.get(id),
+    activateChat: id => toolsState.activateChat(id),
+    selectTab: (id, tabId) => toolsState.select(id, tabId),
+    openKind,
+    closeTab: (id, tabId) => {
+      const tab = toolsState.get(id).tabs.find(t => t.id === tabId)
+      if (tab !== undefined && (tab.kind === 'local' || tab.kind === 'text')) { closeDocument(id, tabId); return }
+      adapter.close(id, tabId)
+    },
+    subscribe: listener => toolsState.subscribe(listener),
+    labels: {
+      chat: fallbackT('tools.chat'),
+      kinds: {
+        files: fallbackT('tools.files'),
+        browser: fallbackT('tools.browser'),
+        terminal: fallbackT('tools.terminal'),
+      },
+    },
+  }), 'chat-power: tools tab row')
   function DocumentActions({ sessionId, absolutePath }: { sessionId: string; absolutePath: string }) {
     const [status, setStatus] = useState('')
     const [busy, setBusy] = useState(false)
@@ -314,8 +343,11 @@ export function registerConversationTools(ctx: any) {
           offset => readers.readPage(sessionId, absolutePath, offset, signal), signal)
         if (edit) {
           const name = absolutePath.split('/').at(-1) ?? absolutePath
-          const tab = toolsState.open(sessionId, 'local', name, `edit://${absolutePath}`)
-          docs.set(tab.id, { name, text, seq: Date.now() }); toolsState.select(sessionId, tab.id)
+          // 暂存键位与 openWorkspaceEditor 同一套：docKey(sessionId, contentId)，
+          // 路径编码对称，标签里才能取到这份正文。
+          const contentId = `edit://${encodeURIComponent(absolutePath)}`
+          const tab = toolsState.open(sessionId, 'local', name, contentId)
+          docs.set(docKey(sessionId, tab.contentId), { name, text, seq: Date.now() }); toolsState.select(sessionId, tab.id)
         } else { await navigator.clipboard.writeText(text); setStatus('已复制全文') }
       } catch (error) { if (!signal.aborted) setStatus(`操作失败：${String(error)}`) }
       finally { if (!signal.aborted) setBusy(false) }

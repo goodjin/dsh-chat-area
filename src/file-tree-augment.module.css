@@ -1,29 +1,42 @@
-/* 文件树行控件：多选框占位在行首，编辑按钮悬浮 / 键盘聚焦 / 触屏常显。
+/* 文件树行控件：多选框放进文件按钮内部（多选框 → 文件名同一行），编辑按钮
+   紧跟在文件按钮之后；三者同行、垂直居中，鼠标移过整行变色并加框线。
    作用域是会话区工具区的内容容器（[data-chat-tools-session]）——宿主右侧栏
    的文件树没有这个标记，不会被我们的控件影响。 */
 
-/* 文件行相对定位让覆盖层有锚；给行按钮让出多选框的宽度。
-   行高至少 32px：checkbox 视觉 14px，点击区依赖行内上下留白满足
-   WCAG 目标尺寸的间距例外（目标周围 24px 内无其它目标）。 */
-[data-chat-tools-session] li[data-files-entry="file"] { position: relative; min-height: 32px; }
-[data-chat-tools-session] li[data-files-entry="file"] > button:first-of-type { padding-left: 26px; }
-
-/* 多选框：钉在行首、垂直居中，行内任何位置都能点中。 */
-[data-chat-tools-session] li[data-files-entry="file"] > [data-chat-file-check] {
-  position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
-  width: 14px; height: 14px; margin: 0; cursor: pointer;
-  accent-color: var(--dsw-alias-state-business-primary, var(--ds-brand, #4d6bfe)); z-index: 1;
+/* 行内布局：文件按钮占主位，编辑按钮紧随其后；行本身留出框线的位置。 */
+[data-chat-tools-session] li[data-files-entry="file"] {
+  display: flex; align-items: center; gap: 4px; min-height: 32px;
+  padding: 0 4px; border: 1px solid transparent; border-radius: 6px;
 }
 
-/* 编辑按钮：行尾 28px 图标钮，不挤占文件名布局。 */
+/* 鼠标移过整行：变色 + 框线（用户点名的交互；键盘聚焦同待遇）。 */
+[data-chat-tools-session] li[data-files-entry="file"]:hover,
+[data-chat-tools-session] li[data-files-entry="file"]:focus-within {
+  background: var(--dsw-alias-bg-hover, rgba(127, 127, 127, 0.12));
+  border-color: var(--dsw-alias-border-l1, rgba(127, 127, 127, 0.2));
+}
+
+/* 文件按钮：行内主位，内部是「多选框 + 文件名」横排；长文件名由宿主自身
+   的省略规则处理，按钮不再给行首多选框让绝对定位的空位。 */
+[data-chat-tools-session] li[data-files-entry="file"] > button:first-of-type {
+  display: inline-flex; align-items: center; gap: 6px; flex: 1; min-width: 0;
+  padding: 4px 6px; text-align: left;
+}
+
+/* 多选框：文件按钮内部、垂直居中，勾选色随宿主语义 token。 */
+[data-chat-tools-session] li[data-files-entry="file"] [data-chat-file-check] {
+  flex: none; width: 14px; height: 14px; margin: 0; cursor: pointer;
+  accent-color: var(--dsw-alias-state-business-primary, var(--ds-brand, #4d6bfe));
+}
+
+/* 编辑按钮：行内 28px 图标钮，布局跟随而非覆盖，不遮文件名。 */
 [data-chat-tools-session] li[data-files-entry="file"] > [data-chat-file-edit] {
-  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
   display: inline-flex; align-items: center; justify-content: center;
-  width: 28px; height: 28px; padding: 0;
+  flex: none; width: 28px; height: 28px; padding: 0;
   border: 1px solid var(--dsw-alias-border-l2, rgba(127, 127, 127, 0.2)); border-radius: 6px;
   background: var(--dsw-alias-bg-container, var(--ds-bg-container, #fff));
   color: var(--dsw-alias-label-secondary, inherit);
-  cursor: pointer; opacity: 0; pointer-events: none; z-index: 1;
+  cursor: pointer; opacity: 0; pointer-events: none;
 }
 [data-chat-tools-session] li[data-files-entry="file"]:hover > [data-chat-file-edit],
 [data-chat-tools-session] li[data-files-entry="file"]:focus-within > [data-chat-file-edit],

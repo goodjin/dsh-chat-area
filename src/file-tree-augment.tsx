@@ -33,6 +33,9 @@ export interface ElementLike {
   hasAttribute(name: string): boolean
   prepend(node: unknown): void
   append(node: unknown): void
+  insertBefore(node: unknown, before: unknown): void
+  querySelector(selector: string): ElementLike | null
+  nextSibling?: unknown
   closest(selector: string): unknown
   checked?: boolean
   innerHTML?: string
@@ -91,8 +94,11 @@ export function decorateRow(row: ElementLike, sessionId: string, handlers: Augme
   edit.setAttribute('aria-label', fallbackT('fileTree.editCopy', { path }))
   edit.setAttribute('title', fallbackT('fileTree.editCopy', { path }))
   edit.innerHTML = EDIT_ICON_SVG
-  row.prepend(check)
-  row.append(edit)
+  const open = row.querySelector('button:first-of-type')
+  if (open !== null) open.prepend(check)
+  else row.prepend(check)
+  if (open !== null) row.insertBefore(edit, open.nextSibling)
+  else row.append(edit)
   row.setAttribute(DECORATED_ATTR, '')
   return true
 }

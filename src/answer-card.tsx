@@ -97,6 +97,11 @@ export function AnswerCard(props: {
     modeRef.current = mode
     controller.submit(inputRef.current?.value ?? '')
   }
+  const copyEdit = (): void => {
+    void copyTextToClipboard(inputRef.current?.value ?? editValue).then(ok => {
+      if (!ok) setToast({ seq: Date.now(), text: propsRef.current.t('markdownTurn.copyFailed') })
+    })
+  }
   const editValue = draft ?? text
 
   return (
@@ -106,11 +111,12 @@ export function AnswerCard(props: {
           title={t('answerCard.editAnswer')}
           subtitle={t('compose.copyHint')}
           onCancel={() => { if (!pending) setEditing(false) }}
+          onCopy={copyEdit}
           onSend={() => { submitEdit('current') }}
           onSendNewSession={() => { submitEdit('new') }}
           sendDisabled={editValue.trim() === ''}
           pending={pending}
-          labels={{ cancel: t('markdownTurn.cancel'), send: t('compose.sendCurrent'), newSession: t('compose.sendNewSession') }}
+          labels={{ cancel: t('markdownTurn.cancel'), send: t('compose.sendCurrent'), newSession: t('compose.sendNewSession'), copy: t('compose.copy') }}
         >
           <textarea
             ref={inputRef}

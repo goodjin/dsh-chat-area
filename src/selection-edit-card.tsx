@@ -23,7 +23,7 @@ import type { MarkdownTurnReaders } from './markdown-turn-sources.ts'
 import type { RuntimeT } from './locales.ts'
 import { NAMESPACE } from './locales.ts'
 import { ComposeCard } from './compose-card.tsx'
-import { createSendController } from './send-actions.ts'
+import { copyTextToClipboard, createSendController } from './send-actions.ts'
 import { inputClass, statusNoticeClass } from './ui-theme.ts'
 import css from './markdown-turn.module.css'
 
@@ -110,6 +110,11 @@ function SelectionEditCard(props: {
     modeRef.current = mode
     controller.submit(inputRef.current?.value ?? '')
   }
+  const copyEdit = (): void => {
+    void copyTextToClipboard(inputRef.current?.value ?? props.state.text).then(ok => {
+      if (!ok) setToast({ seq: Date.now(), text: propsRef.current.t('markdownTurn.copyFailed') })
+    })
+  }
 
   const title = t(props.state.multi ? 'selection.multiEditTitle' : 'selection.editTitle')
 
@@ -133,11 +138,12 @@ function SelectionEditCard(props: {
           title={title}
           subtitle={t('compose.copyHint')}
           onCancel={() => { if (!pending) closeSelectionEdit() }}
+          onCopy={copyEdit}
           onSend={() => { submit('current') }}
           onSendNewSession={() => { submit('new') }}
           sendDisabled={!hasText}
           pending={pending}
-          labels={{ cancel: t('markdownTurn.cancel'), send: t('compose.sendCurrent'), newSession: t('compose.sendNewSession') }}
+          labels={{ cancel: t('markdownTurn.cancel'), send: t('compose.sendCurrent'), newSession: t('compose.sendNewSession'), copy: t('compose.copy') }}
         >
           <textarea
             ref={inputRef}
