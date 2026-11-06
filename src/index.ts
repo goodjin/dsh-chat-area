@@ -17,7 +17,9 @@ import { registerSessionIdBar } from './session-id-bar/index.js'
 import { startMermaidDiagrams } from './mermaid.ts'
 import { injectTablePadCss } from './table-pad.ts'
 import { injectUiThemeCss } from './ui-theme.ts'
-import { startSelectionActionsFromRemote, sessionKeyAccessorsOf } from './selection-actions.ts'
+import { createMarkdownTurnReaders } from './markdown-turn-sources.ts'
+import { registerSelectionToolbar } from './selection-toolbar.tsx'
+import { startMultiSelectPanel } from './selection-actions.ts'
 import { registerConversationSurfaces } from './conversation-surfaces.tsx'
 import { fallbackT } from './locales.ts'
 
@@ -88,16 +90,28 @@ export function apply(ctx: PluginContext): void {
     log.warn(`table pad: inject failed — ${error instanceof Error ? error.message : String(error)}`)
   }
   try {
-    // 会话区选区弹条：选中文字末尾弹「添加到会话 / 发送会话」。
-    const disposeSelection = startSelectionActionsFromRemote(
-      () => ctx.get('remote'),
+    // 会话选区工具栏：占住宿主文本交互座位 conversation.chat.text-interaction
+    // 的 `quote` 位（顶替官方引用钮），弹出「引用 / 添加到会话 / 发送会话 / 编辑 /
+    // 多选」。引用钮与官方同位同效；后四钮复用本包 store。发送走 remote。
+    const slotHost = ctx.slots as Parameters<typeof registerSelectionToolbar>[0]
+    const readers = createMarkdownTurnReaders(() => ctx.get('remote'))
+    const disposeToolbar = registerSelectionToolbar(
+      slotHost,
       fallbackT,
-      sessionKeyAccessorsOf(ctx),
+      (sessionId, text) => { void readers.sendToSession(sessionId, text) },
     )
-    ctx.effect(() => disposeSelection, 'dsh-chat-power: selection actions')
-    log.info('selection actions: started')
+    ctx.effect(() => disposeToolbar, 'dsh-chat-power: selection toolbar')
+    log.info('selection toolbar: registered')
   } catch (error: unknown) {
-    log.warn(`selection actions: start failed — ${error instanceof Error ? error.message : String(error)}`)
+    log.warn(`selection toolbar: registration failed — ${error instanceof Error ? error.message : String(error)}`)
+  }
+  try {
+    // 多选收集面板：跨多次选择续存的浮动「已收集 N 段」面板，由 store 驱动。
+    const disposePanel = startMultiSelectPanel({ t: fallbackT })
+    ctx.effect(() => disposePanel, 'dsh-chat-power: multi-select panel')
+    log.info('multi-select panel: started')
+  } catch (error: unknown) {
+    log.warn(`multi-select panel: start failed — ${error instanceof Error ? error.message : String(error)}`)
   }
   try {
     // 注册会话 ID 条（需要 slots）

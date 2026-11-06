@@ -1,0 +1,60 @@
+/* 选区工具栏：宿主文本交互表面里弹出的一条工具栏。
+   顶替官方引用钮（同 key `quote`），故与官方引用钮同位、同材质——
+   宿主表面已定位在选区旁，这里只管按钮排与质感。材质走宿主语义 token，
+   写死值只作 token 缺席时的中性回退。 */
+
+.selbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-container, rgb(255 255 255 / 96%));
+  border: 1px solid var(--dsw-alias-border-l2, rgba(127, 127, 127, .2));
+  box-shadow: 0 4px 16px rgb(0 0 0 / 16%);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary, inherit);
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 18px;
+  padding: 5px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn svg {
+  flex: none;
+}
+
+.icon {
+  display: inline-flex;
+  flex: none;
+}
+
+.label {
+  /* 文字标签保留：与官方引用钮一致，不只靠图标表意。 */
+}
+
+.divider {
+  width: 1px;
+  height: 16px;
+  flex: none;
+  background: var(--dsw-alias-border-l1, rgba(127, 127, 127, .15));
+}
+
+.btn:hover {
+  background: var(--dsw-alias-bg-hover, rgba(127, 127, 127, .1));
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary, var(--dsw-alias-brand-primary, currentColor));
+  outline-offset: 1px;
+}
