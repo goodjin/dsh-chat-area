@@ -28,7 +28,6 @@ import type { ComponentType, ReactElement } from 'react'
 import { IconEditOutlineRegular, IconSendOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import {
   addMultiItem,
-  composeFillAppend,
   currentSessionIdFromDom,
   openSelectionEdit,
 } from './selection-actions.ts'
@@ -45,9 +44,6 @@ export type SelectionSend = (sessionId: string, text: string) => void
 /** 「引用」图标（描边，与官方引用卡引号同一语汇；颜色随文字）。 */
 const ICON_QUOTE = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3.5c-2 0-3.5 1.6-3.5 3.7 0 2 1.4 3.3 3.1 3.3.3 0 .6 0 .7-.1-.3 1.3-1.4 2.4-2.8 2.7l.6 1.1c2.7-.7 4.6-3 4.6-6.1 0-2.6-1.4-4.6-3.7-4.6Zm6.4 0c-2 0-3.5 1.6-3.5 3.7 0 2 1.4 3.3 3.1 3.3.3 0 .6 0 .7-.1-.3 1.3-1.4 2.4-2.8 2.7l.6 1.1c2.7-.7 4.6-3 4.6-6.1 0-2.6-1.4-4.6-3.7-4.6Z" fill="currentColor"/></svg>'
 
-/** 「添加到会话」的加号图标（描边，颜色随文字）。 */
-const ICON_PLUS = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
-
 /** 「多选」图标（叠层，与旧弹条同名；颜色随文字）。 */
 const ICON_LAYERS = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M3 10.5V3.8C3 3.4 3.4 3 3.8 3h6.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>'
 
@@ -58,10 +54,9 @@ interface ToolbarButton {
   readonly labelKey: string
 }
 
-/** 五个按钮，顺序与旧弹条一致：引用（官方同位）在前，其余随后。 */
+/** 四个按钮：引用（官方同位）在前，随后发送/编辑/多选。 */
 const BUTTONS: readonly ToolbarButton[] = [
   { action: 'quote', icon: ICON_QUOTE, labelKey: 'selection.quote' },
-  { action: 'add-to-chat', icon: ICON_PLUS, labelKey: 'selection.addToChat' },
   { action: 'send-to-chat', icon: '', labelKey: 'selection.sendToChat' },
   { action: 'edit-selection', icon: '', labelKey: 'selection.edit' },
   { action: 'multi-add', icon: ICON_LAYERS, labelKey: 'selection.multiAdd' },
@@ -71,28 +66,6 @@ const BUTTONS: readonly ToolbarButton[] = [
 const ICON_COMPONENTS: Record<string, ComponentType<{ size?: number }>> = {
   'send-to-chat': IconSendOutlineRegular,
   'edit-selection': IconEditOutlineRegular,
-}
-
-/**
- * 把选中文字追加到输入框草稿：光标塌缩到 composer 末尾后走 insertText——Lexical
- * 经 beforeinput 正确接住，草稿与未发送提示保持原生行为。（与旧弹条同路数。）
- * @param text - 选中的文字。
- * @returns 是否成功填入。
- */
-export function fillComposerWith(text: string): boolean {
-  const composer = document.querySelector<HTMLElement>('[data-composer-input]')
-  if (composer === null || typeof document.execCommand !== 'function') return false
-  composer.focus()
-  // 光标塌缩到 composer 内容的**末尾**，再走 insertText 追加。不能「全选 + 整段替换」：
-  // Lexical 维护自己的内容模型，DOM 层的范围替换会被它的模型校验拒绝并回滚。
-  const range = document.createRange()
-  range.selectNodeContents(composer)
-  range.collapse(false)
-  const selection = window.getSelection()
-  selection?.removeAllRanges()
-  selection?.addRange(range)
-  const existing = composer.textContent ?? ''
-  return document.execCommand('insertText', false, composeFillAppend(existing, text))
 }
 
 /** 宿主座位项拿到的 props：表面手势 + 注入的服务（与官方引用钮同款）。 */
@@ -135,12 +108,6 @@ export function SelectionToolbar(props: TextInteractionProps): ReactElement {
         clearSelection()
         dismiss()
         return
-      case 'add-to-chat': {
-        if (!fillComposerWith(text)) { toast(translate('selection.fillFailed')); return }
-        clearSelection()
-        dismiss()
-        return
-      }
       case 'send-to-chat':
         // 发送走 remote（队列模式，与文件阅读区同一条通道）。readers 在注册时
         // 经闭包注入；拿不到就静默收台。
@@ -191,20 +158,12 @@ export function SelectionToolbar(props: TextInteractionProps): ReactElement {
           onClick: () => { run(button.action) },
         }, children),
       ]
-      // 引用钮与「添加到会话」之间放一道细分隔线，呼应官方单钮与新组的层次。
+      // 引用钮与其余功能之间放一道细分隔线：引用是官方同位的主操作，
+      // 发送/编辑/多选是本包附带的另一组。
       if (index === 0) items.push(createElement('span', { key: 'divider', className: css.divider, 'aria-hidden': 'true' }))
       return items
     }),
   )
-}
-
-/** 轻提示（toast）：只用于「没有找到输入框」等短反馈。 */
-function toast(text: string): void {
-  const el = document.createElement('div')
-  el.className = 'dshca-toast'
-  el.textContent = text
-  document.body.appendChild(el)
-  window.setTimeout(() => { el.remove() }, 2200)
 }
 
 /** 注册 seats 宿主回调的最小结构（与 session-id-bar 同款抽象）。 */

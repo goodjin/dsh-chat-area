@@ -20,8 +20,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   IconEditOutlineRegular: () => null,
 }))
 
-const { SELECTION_TOOLBAR_KEY, SelectionToolbar, registerSelectionToolbar, fillComposerWith } = await import('../src/selection-toolbar.tsx')
-const { composeFillAppend } = await import('../src/selection-actions.ts')
+const { SELECTION_TOOLBAR_KEY, SelectionToolbar, registerSelectionToolbar } = await import('../src/selection-toolbar.tsx')
 const { NAMESPACE } = await import('../src/locales.ts')
 
 /** 宿主文本交互座位名（ui-chat 声明，keyed / session 作用域）。 */
@@ -108,32 +107,21 @@ describe('组件形状（不渲染，只验证产出的元素结构）', () => {
     expect(props['data-dshcaSelbar']).toBe('')
   })
 
-  it('五个按钮按序排列：引用（官方同位）在前，其后添加到会话/发送/编辑/多选', () => {
+  it('四个按钮按序排列：引用（官方同位）在前，其后发送/编辑/多选', () => {
     const element = render()
     const props = element.props as { children: unknown[] }
     const actions = (props.children as ReactElement[])
       .flatMap(child => (child as { props?: { 'data-action'?: string } }).props?.['data-action'] ? [child] : [])
       .map(child => (child as { props: { 'data-action': string } }).props['data-action'])
-    expect(actions).toEqual(['quote', 'add-to-chat', 'send-to-chat', 'edit-selection', 'multi-add'])
+    expect(actions).toEqual(['quote', 'send-to-chat', 'edit-selection', 'multi-add'])
   })
 
-  it('引用钮与「添加到会话」之间有一道分隔线', () => {
+  it('引用钮与其余功能之间有一道分隔线', () => {
     const element = render()
     const props = element.props as { children: unknown[] }
     const divider = (props.children as ReactElement[]).find(
       child => (child as { props?: { className?: string } }).props?.className?.includes('divider'),
     )
     expect(divider).toBeDefined()
-  })
-})
-
-describe('填充输入框的追加文本口径', () => {
-  it('已有草稿：三个空格 + 选中文字 + 尾空格', () => {
-    // fillComposerWith 内部走 composeFillAppend；这里钉住口径与旧弹条一致。
-    expect(composeFillAppend('已有草稿', '选中内容')).toBe('   选中内容 ')
-  })
-
-  it('草稿为空：直接是选中文字加尾空格', () => {
-    expect(composeFillAppend('', '选中内容')).toBe('选中内容 ')
   })
 })

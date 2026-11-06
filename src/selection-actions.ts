@@ -24,18 +24,6 @@ export function currentSessionIdFromDom(): string | undefined {
   return value === null || value === '' ? undefined : value
 }
 
-/**
- * 计算要**追加**到输入框末尾的文本：已有草稿时先隔**三个空格**再接选中
- * 内容，最末尾补**一个空格**（方便用户接着往下输入）；草稿为空时直接填
- * 选中内容加尾空格。
- * @param existing - 输入框里已有的草稿文本（contenteditable 的可见文本）。
- * @param text - 选中的文字。
- * @returns 应追加的文本。
- */
-export function composeFillAppend(existing: string, text: string): string {
-  return existing === '' ? `${text} ` : `   ${text} `
-}
-
 /** 多选收藏里的一条：捕获时的文本。 */
 export interface MultiItem {
   readonly id: number

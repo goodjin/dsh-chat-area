@@ -11,7 +11,6 @@ import {
   addMultiItem,
   clearMultiItems,
   closeSelectionEdit,
-  composeFillAppend,
   getMultiItems,
   getSelectionEdit,
   boundToActiveSession,
@@ -20,16 +19,6 @@ import {
   removeMultiItem,
   selectionEditVisible,
 } from '../src/selection-actions.ts'
-
-describe('填充输入框的追加文本', () => {
-  it('已有草稿时：三个空格 + 选中文字 + 尾空格（追加到末尾，旧内容由光标路径保留）', () => {
-    expect(composeFillAppend('已有草稿', '选中内容')).toBe('   选中内容 ')
-  })
-
-  it('草稿为空时：直接是选中文字加尾空格', () => {
-    expect(composeFillAppend('', '选中内容')).toBe('选中内容 ')
-  })
-})
 
 describe('多选收藏', () => {
   it('收藏绑定收集时的会话：换会话收集会重开新会话的收藏流', () => {

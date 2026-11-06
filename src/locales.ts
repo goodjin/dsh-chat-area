@@ -40,7 +40,7 @@ export type ChatPowerLocaleKey =
   | 'markdownTurn.localFileHeader' | 'markdownTurn.localFileTooLarge'
   | 'markdownTurn.copyAll'
   | 'compose.sendCurrent' | 'compose.sendNewSession' | 'compose.copyHint'
-  | 'selection.addToChat' | 'selection.sendToChat' | 'selection.fillFailed'
+  | 'selection.sendToChat'
   | 'selection.quote' | 'selection.toolbarLabel'
   | 'selection.edit' | 'selection.multiAdd' | 'selection.editCount'
   | 'selection.removeItem'
@@ -119,9 +119,7 @@ export const zh: Record<ChatPowerLocaleKey, string> = {
   'compose.sendCurrent': '发送到当前会话',
   'compose.sendNewSession': '新建会话并发送',
   'compose.copyHint': '这里编辑的是发送副本，原文件不会被改动',
-  'selection.addToChat': '添加到会话',
   'selection.sendToChat': '发送会话',
-  'selection.fillFailed': '没有找到输入框',
   'selection.quote': '引用',
   'selection.toolbarLabel': '选区操作',
   'selection.edit': '编辑',
@@ -212,9 +210,7 @@ export const en: Record<ChatPowerLocaleKey, string> = {
   'compose.sendCurrent': 'Send to current conversation',
   'compose.sendNewSession': 'New session and send',
   'compose.copyHint': 'You are editing a copy to send; the original stays unchanged.',
-  'selection.addToChat': 'Add to chat',
   'selection.sendToChat': 'Send to chat',
-  'selection.fillFailed': 'Composer not found',
   'selection.quote': 'Quote',
   'selection.toolbarLabel': 'Selection actions',
   'selection.edit': 'Edit',
