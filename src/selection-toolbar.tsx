@@ -194,6 +194,11 @@ export function registerSelectionToolbar(
     {
       name: 'conversation.chat.text-interaction',
       key: SELECTION_TOOLBAR_KEY,
+      // 宿主 keyed 座位同 key 同 priority 会抛「already has an entry」并把官方
+      // message-quotes 整条入口拽挂（boot 报 1 entry did not activate）。官方
+      // 引用钮未写 priority（=0），这里压到 -10：同 key 不同 priority 合法，
+      // 最低者渲染（宿主报错文本原话 lowest renders），本工具栏遮蔽官方钮。
+      priority: -10,
       locale: NAMESPACE,
     },
     (props: TextInteractionProps) => createElement(SelectionToolbar, { ...props, t, send }),

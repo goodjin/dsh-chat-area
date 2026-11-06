@@ -62,11 +62,13 @@ describe('占位的接线不变量', () => {
     expect(SELECTION_TOOLBAR_KEY).toBe('quote')
   })
 
-  it('注册进宿主文本交互座位，声明项带 key=quote 与本包词典', () => {
+  it('注册进宿主文本交互座位，声明项带 key=quote、priority=-10 与本包词典', () => {
     const host = fakeSlots()
     const dispose = registerSelectionToolbar(host.slots, (key: string) => key)
     expect(host.calls).toEqual([`inject:${SLOT}`, 'register'])
-    expect(host.options).toMatchObject({ name: SLOT, key: SELECTION_TOOLBAR_KEY, locale: NAMESPACE })
+    // priority 必须低于官方引用钮（未写 = 0）：同 key 同 priority 宿主会抛
+    // 「already has an entry」并把官方 message-quotes 整条入口拽挂（2026-11-07 boot 现场）。
+    expect(host.options).toMatchObject({ name: SLOT, key: SELECTION_TOOLBAR_KEY, priority: -10, locale: NAMESPACE })
     expect(typeof dispose).toBe('function')
   })
 

@@ -78,6 +78,8 @@ export interface RowElementLike {
   querySelector(selector: string): RowElementLike | null
   querySelectorAll(selector: string): Iterable<RowElementLike>
   closest(selector: string): RowElementLike | null
+  /** 真实 DOM 有 children；测试假件可缺省（护栏签名比对退化到总是重画）。 */
+  readonly children?: { readonly length: number }
   ownerDocument?: RowDocumentLike
 }
 
@@ -100,6 +102,19 @@ export interface ToolsRowClasses {}
 function sessionOfContent(root: RowElementLike): string | undefined {
   const value = root.getAttribute('data-conversation-session')
   return value === null || value === '' ? undefined : value
+}
+
+/** 每个会话内容根上次同步的签名：快照与行都没变就不再碰 DOM。 */
+interface SyncSignature {
+  readonly sig: string
+  readonly row: RowElementLike
+  readonly children: number
+}
+const lastSync = new WeakMap<RowElementLike, SyncSignature>()
+
+/** 快照签名：标签集合与激活态（重画与否的唯一依据）。 */
+function signatureOf(snapshot: ToolsRowSnapshot): string {
+  return `${snapshot.active ?? ''}|${snapshot.tabs.map(tab => `${tab.id}~${tab.kind}~${tab.title}`).join(',')}`
 }
 
 /**
@@ -140,6 +155,19 @@ export function syncSessionToolsRow(root: RowElementLike, doc: RowDocumentLike, 
     }
     row = owned
     ownsChatButton = true
+  }
+  // 自反馈护栏（2026-11-07 空转现场）：全量重画的 childList/attribute 变异会
+  // 触发自己的 MutationObserver 再次 sync——微任务互相排队、永不排空，一核
+  // 打满且饿死定时器与调试器。签名比对必须先于**任何** DOM 写（setAttribute
+  // 即使写同值也会产生变异记录）：快照没变、行没换、子节点齐全就原样返回。
+  const sig = signatureOf(snapshot)
+  const expectedChildren = 3 + snapshot.tabs.filter(tab => !['chat', 'files', 'browser', 'terminal'].includes(tab.kind)).length * 2
+  const prev = lastSync.get(root)
+  const groupForCheck = row.querySelector(`[${GROUP_ATTR}]`)
+  if (prev !== undefined && prev.sig === sig && prev.row === row && groupForCheck !== null && (groupForCheck.children?.length ?? -1) === expectedChildren) return row
+  lastSync.set(root, { sig, row, children: expectedChildren })
+  // 以下是重画路径：只在快照或行结构真的变了时走到。
+  if (ownsChatButton) {
     // 自建行的「对话」标签：工具激活时它不该高亮。
     const chatButton = row.querySelector('[data-chat-tools-chat-button]')
     if (chatButton !== null) chatButton.setAttribute('aria-selected', snapshot.active === undefined || snapshot.active === '' ? 'true' : 'false')

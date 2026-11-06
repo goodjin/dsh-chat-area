@@ -158,7 +158,13 @@ export function registerConversationTools(ctx: any) {
         setMounts({ button: null as unknown as HTMLElement, body })
       }
       attach()
-      const observer = new MutationObserver(attach)
+      // attach 自己的 remove/insert 也是 childList 变异：回调末尾吞掉本次造成的
+      // 记录，掐断「自己触发自己」的无限微任务循环（2026-11-07 空转现场：该循环
+      // 打满一核且饿死定时器/console/调试器）。外来变异不受影响，照常触发。
+      const observer = new MutationObserver(() => {
+        attach()
+        observer.takeRecords()
+      })
       observer.observe(document.body, { childList: true, subtree: true })
       return () => { observer.disconnect(); body?.remove() }
     }, [])

@@ -109,6 +109,34 @@ function el(tag: string, attrs: Record<string, string> = {}): FakeEl {
 }
 const fakeDoc = () => ({ createElement: (tag: string) => el(tag), createTextNode: (text: string) => ({ text }), querySelectorAll: () => [] as FakeEl[] })
 
+/** 把一个假件的所有 DOM 写动作记进 log（包装原实现，行为不变）。 */
+function instrument(node: FakeEl, log: string[]): void {
+  const setAttribute = node.setAttribute.bind(node)
+  node.setAttribute = (name, value) => { log.push(`set ${name}=${value}`); setAttribute(name, value) }
+  const removeAttribute = node.removeAttribute.bind(node)
+  node.removeAttribute = name => { log.push(`removeAttribute ${name}`); removeAttribute(name) }
+  const replaceChildren = node.replaceChildren.bind(node)
+  node.replaceChildren = () => { log.push('replaceChildren'); replaceChildren() }
+  const insertBefore = node.insertBefore.bind(node)
+  node.insertBefore = (child, before) => { log.push('insertBefore'); insertBefore(child, before) }
+  const append = node.append.bind(node)
+  node.append = child => { log.push('append'); append(child) }
+  const remove = node.remove.bind(node)
+  node.remove = () => { log.push('remove'); remove() }
+}
+
+/** 连同既有子树一起埋点；此后 doc 新建的节点由 instrumentingDoc 负责埋点。 */
+function instrumentTree(node: FakeEl, log: string[]): void {
+  instrument(node, log)
+  for (const child of node.children) instrumentTree(child, log)
+}
+
+/** createElement 出的每个节点都埋点的 doc：护栏测试用。 */
+function instrumentingDoc(log: string[]): ReturnType<typeof fakeDoc> {
+  const doc = fakeDoc()
+  return { ...doc, createElement: (tag: string) => { const node = el(tag); instrument(node, log); return node } }
+}
+
 /** 记录动作的假处理器。 */
 function handlers(snapshot: (sessionId: string) => ToolsRowSnapshot): { value: ToolsRowHandlers; actions: string[] } {
   const actions: string[] = []
@@ -174,6 +202,39 @@ describe('syncSessionToolsRow（同步）', () => {
     syncSessionToolsRow(root, fakeDoc(), h.value, {})
     const group = root.querySelector(`[${GROUP_ATTR}]`)
     expect(group!.querySelectorAll(`[${TAB_ATTR}]`)).toHaveLength(4)
+  })
+})
+
+describe('自反馈护栏（2026-11-07 一核空转现场）', () => {
+  const localTab = (id: string, title: string) => ({ id, kind: 'local' as const, title })
+
+  it('快照未变的重复同步：一个 DOM 写都不做——写就是变异，变异会喂给自己的观察者', () => {
+    const log: string[] = []
+    const root = content('s1', true)
+    instrumentTree(root, log)
+    const doc = instrumentingDoc(log)
+    const h = handlers(() => snapshotOf([localTab('t1', 'a.md')], undefined))
+    syncSessionToolsRow(root, doc, h.value, {})
+    expect(log.length).toBeGreaterThan(0) // 首次同步确实画了
+    log.length = 0
+    syncSessionToolsRow(root, doc, h.value, {})
+    expect(log).toEqual([])
+  })
+
+  it('快照真的变了：照常重画，护栏不误伤正常同步', () => {
+    let snap = snapshotOf([localTab('t1', 'a.md')], undefined)
+    const log: string[] = []
+    const root = content('s1', true)
+    instrumentTree(root, log)
+    const doc = instrumentingDoc(log)
+    const h = handlers(() => snap)
+    syncSessionToolsRow(root, doc, h.value, {})
+    log.length = 0
+    snap = snapshotOf([localTab('t1', 'a.md'), localTab('t2', 'b.md')], 't2')
+    syncSessionToolsRow(root, doc, h.value, {})
+    expect(log.length).toBeGreaterThan(0)
+    expect(root.querySelectorAll(`[${TAB_ATTR}]`)).toHaveLength(5) // 3 个种类启动器 + 2 个文件标签
+    expect(root.querySelectorAll(`[${TAB_CLOSE_ATTR}]`)).toHaveLength(2)
   })
 })
 
