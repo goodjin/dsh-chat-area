@@ -134,3 +134,23 @@ MIT
 标签间来回切换保留状态、文件行勾选引用进输入框且取消勾选移除、文件行悬浮编辑打开
 编辑标签、文本文件编辑保留、工作区预览/复制/编辑、浏览器内外打开、终端启动/关闭；
 检查宿主右侧栏未受影响。构建产物随源码提交，桌面 App 重启后加载。
+
+
+## Version anchor tags
+
+This repo participates in the container's DSH version-correspondence mechanism: every
+plugin repo carries tags named `dsh-<dsh版本>` (e.g. `dsh-0.2.2-rc.1`), each an annotated
+tag recording the dsh version it was verified against, the check result, and the date.
+The tag is the immutable "known-good coordinate" of that dsh version — a snapshot of
+`main` taken the moment the whole-plugin row check went green on every installed host.
+
+- **Why tags instead of releases**: the desktop app reads this checkout by path and the
+  web install pulls `repo#ref` — a git tag is already the furthest installable form, so
+  no npm publish or GitHub Release is needed.
+- **Rollback**: `scripts/pin-to-dsh.sh 0.2.2-rc.1` (from the container) checks out the
+  tag in every repo at once; `scripts/check-host-rows.mjs --report` shows which repos are
+  on the anchor for the running dsh version.
+- **Do not move or delete a `dsh-*` tag**; it is a rollback coordinate. A follow-up fix on
+  the same dsh version adds a `-p2` (then `-p3`) suffixed tag instead.
+- New tags are cut after each dsh upgrade, as step 4 of the upgrade runbook — see the
+  container's `AGENTS.md` for the full flow.
