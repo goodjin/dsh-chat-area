@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { CHAT_TAB_ID, ToolsState } from '../src/tools-state.ts'
+import { CHAT_TAB_ID, ToolsState, resourceTabs } from '../src/tools-state.ts'
 describe('conversation tabs workspace', () => {
+  it('第二行只放资源标签：会话不再重复画一枚同名标签', () => {
+    const state = new ToolsState()
+    state.seed('one', true)
+    state.activateChat('one')
+    const local = state.open('one', 'local', 'a.md', 'edit://a.md')
+    const tabs = state.get('one').tabs
+    expect(resourceTabs(tabs).map(t => t.id)).toEqual([local.id])
+    expect(resourceTabs(tabs).some(t => t.kind === 'chat')).toBe(false)
+  })
   it('seeds a brand-new session with the workspace files tab active and no chat tab', () => {
     const state = new ToolsState()
     state.seed('one', false)

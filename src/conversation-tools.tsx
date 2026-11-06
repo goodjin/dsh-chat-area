@@ -1,7 +1,7 @@
 import { createPortal } from 'react-dom'
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { IconChevronDownOutlineRegular, IconFolderOpenOutlineRegular, IconRightUpOutlineRegular, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
-import { toolsState } from './tools-state.ts'
+import { toolsState, resourceTabs } from './tools-state.ts'
 import { createToolsAdapter, toolSlot } from './tools-adapter.tsx'
 import { attachFilesTreeAugment, hasHistoryForPhase, type AugmentHandlers } from './file-tree-augment.tsx'
 import { checkedFiles, toolsNotice } from './checked-files.ts'
@@ -99,7 +99,7 @@ export function registerConversationTools(ctx: any) {
     }
     const activeTab = s.tabs.find(t => t.id === s.active)
     const activeKind = activeTab?.kind
-    const chipTabs = s.tabs.filter(tab => tab.kind === 'chat' || tab.kind === 'local' || tab.kind === 'text')
+    const chipTabs = resourceTabs(s.tabs)
     const viewLabel = { files: fallbackT('tools.files'), browser: fallbackT('tools.browser'), terminal: fallbackT('tools.terminal') } as const
     return <section className={css.tools} data-chat-tools="" aria-label="会话工具">
       {/* 第一层：视图导航（固定高度、不换行）。会话视图 + 三个工具入口；右端是

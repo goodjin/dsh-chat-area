@@ -8,14 +8,14 @@ import * as terminal from '@deepseek-ai/dsh-client-ui-sidebar-terminal'
 import * as documentPreview from '@deepseek-ai/dsh-client-ui-sidebar-documentpreview'
 import { readDefaultLinkOpenMode, openInBrowser } from './link-open.ts'
 import { toolsState, type ToolTab } from './tools-state.ts'
-export const toolSlot = (name: string) => name.startsWith('sidebar.right.') ? `chat-power.tools.${name.slice('sidebar.right.'.length)}` : name
+import { privateFactory, privateSlot, toolSlot } from './slot-names.ts'
+export { toolSlot }
 export const features = [files, browser, terminal, documentPreview]
 
 export function createToolsAdapter(ctx: any) {
   const definitions = new Map<string, any>()
   const closeHandlers = new Map<string, any>()
   const privateServices = new Map<string, any>()
-  const handles = new WeakMap<object, any>()
   const facadeCache = new WeakMap<object, any>()
   const hostSidebar = ctx.get('sidebarRight')
   const inventory = { subscribe: toolsState.subscribe, getSnapshot: () => toolsState.inventory() }
@@ -65,26 +65,50 @@ export function createToolsAdapter(ctx: any) {
     openTabIn: open, openResourceIn: openResource, closeIn: close,
     registerCloseHandler(kind: string, fn: any) { closeHandlers.set(kind, fn); return () => closeHandlers.delete(kind) },
   })
+  // 宿主 0.2.2 起，标签登记表不再只有 register：宿主会问
+  // 「有没有类型能打开这个地址」（entries / candidates / subscribe）。
+  // 少一个方法，文件面板整个起不来（registry.entries is not a function），
+  // 表现为会话区里点开「工作区文件」一片空白。读接口照抄宿主那套，
+  // 答案取自宿主自己的登记表——问的是「这类地址能不能打开」，
+  // 与类型登记在谁名下无关；登记仍然只进私有表，宿主右侧栏不受影响。
+  const hostTabs = (): any => {
+    try { return ctx.get('sidebarRightTabs') } catch { return undefined }
+  }
   privateServices.set('sidebarRightTabs', {
     register(definition: any) { definitions.set(definition.kind, definition); return () => definitions.delete(definition.kind) },
+    entries: () => hostTabs()?.entries?.() ?? [],
+    candidates: (address: string) => hostTabs()?.candidates?.(address) ?? [],
+    subscribe: (listener: () => void) => hostTabs()?.subscribe?.(listener) ?? (() => {}),
   })
-  const mappedStore = (handle: any) => {
-    if (!handle) return undefined
-    if (!handles.has(handle)) handles.set(handle, { ...handle, create: (key?: string) => handle.create(`chat-power.tools.${key ?? 'root'}`) })
-    return handles.get(handle)
-  }
+  // 宿主的 store 作用域键**就是会话 ID**：文件面板拿它去列工作区文件、
+  // 找标签实例。此前给键加了 `chat-power.tools.` 前缀，宿主 0.2.2 起
+  // 这个键会一路传到远端请求——会话 ID 变成带前缀的怪串，文件列不出来
+  // （面板只剩一个路径标题，没有条目）。这里原样传键：每个特性自己
+  // 持有 store 实例，内存互不串味；落盘的键与宿主同名，存的是每面板
+  // 自己的展开状态，互不影响。
   function facade(scope: any): any {
     if (facadeCache.has(scope)) return facadeCache.get(scope)
     const slots = new Proxy(scope.slots, { get(target, key) {
       if (key === 'register') return (options: any, Component: any) => {
         const children = options.children && Object.fromEntries(Object.entries(options.children).map(([name, spec]) => [toolSlot(name), spec]))
-        return target.register({ ...options, name: toolSlot(options.name), children, store: mappedStore(options.store) }, (props: any) => {
+        return target.register({ ...options, name: toolSlot(options.name), children, store: options.store }, (props: any) => {
           const shares = { ...props }
           for (const method of ['renderSlot', 'renderSlotChain', 'renderFactorySlot']) {
-            if (props[method]) shares[method] = (name: string, ...args: any[]) => props[method](toolSlot(name), ...args)
+            if (props[method]) shares[method] = (name: string, ...args: any[]) => props[method](privateSlot(name), ...args)
           }
           return createElement(Component, shares)
         })
+      }
+      if (key === 'registerFactory') return (options: any, Component: any) => {
+        try {
+          return target.registerFactory({ ...options, name: privateFactory(options.name), store: options.store }, Component)
+        } catch (error: unknown) {
+          // 宿主 0.2.2 起，文件面板会注册固定名字的工厂（文件树 / 导航器）。
+          // 宿主自己那份已经注册过，私有作用域再注册就撞名——撞名说明
+          // 工厂本来就是共用的那一份，沿用它即可，不必再注册一次。
+          if (String(error).includes('already has a definition')) return () => {}
+          throw error
+        }
       }
       if (['inject', 'entries', 'entriesOfSlot', 'subscribe', 'specDynamic'].includes(String(key))) return (name: string, ...args: any[]) => target[key](toolSlot(name), ...args)
       const value = target[key]; return typeof value === 'function' ? value.bind(target) : value
@@ -108,7 +132,10 @@ export function createToolsAdapter(ctx: any) {
   }
   const install = () => {
     const privateCtx = facade(ctx)
-    for (const feature of features) privateCtx.inject(feature.inject, (scope: any) => feature.apply(scope))
+    for (const feature of features) privateCtx.inject(feature.inject, (scope: any) => {
+      // 一个面板装载失败不该拖垮整条挂载行：记下原因，其余面板照常。
+      try { feature.apply(scope) } catch (error: unknown) { console.error(`[chat-power] 会话工具面板装载失败：${feature.inject.join(', ')}`, error) }
+    })
     ctx.effect(() => {
       // sidebarRight 已经写进 inject，正常路径下一定在；这里仍判空，是因为工具区
       // 不该因为宿主少一个服务就整块起不来（失败了就只是不接管终端标签）。
