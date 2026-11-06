@@ -40,6 +40,7 @@ export type ChatPowerLocaleKey =
   | 'markdownTurn.localFileHeader' | 'markdownTurn.localFileTooLarge'
   | 'markdownTurn.copyAll'
   | 'compose.sendCurrent' | 'compose.sendNewSession' | 'compose.copyHint'
+  | 'compose.copy' | 'compose.save' | 'compose.saveSaved' | 'compose.saveFailed'
   | 'selection.sendToChat'
   | 'selection.quote' | 'selection.toolbarLabel'
   | 'selection.edit' | 'selection.multiAdd' | 'selection.editCount'
@@ -119,6 +120,10 @@ export const zh: Record<ChatPowerLocaleKey, string> = {
   'compose.sendCurrent': '发送到当前会话',
   'compose.sendNewSession': '新建会话并发送',
   'compose.copyHint': '这里编辑的是发送副本，原文件不会被改动',
+  'compose.copy': '复制',
+  'compose.save': '保存',
+  'compose.saveSaved': '已保存到文件',
+  'compose.saveFailed': '保存失败，内容仍保留在编辑框里',
   'selection.sendToChat': '发送会话',
   'selection.quote': '引用',
   'selection.toolbarLabel': '选区操作',
@@ -210,6 +215,10 @@ export const en: Record<ChatPowerLocaleKey, string> = {
   'compose.sendCurrent': 'Send to current conversation',
   'compose.sendNewSession': 'New session and send',
   'compose.copyHint': 'You are editing a copy to send; the original stays unchanged.',
+  'compose.copy': 'Copy',
+  'compose.save': 'Save',
+  'compose.saveSaved': 'Saved to the file',
+  'compose.saveFailed': 'Save failed; the text is kept in the editor',
   'selection.sendToChat': 'Send to chat',
   'selection.quote': 'Quote',
   'selection.toolbarLabel': 'Selection actions',

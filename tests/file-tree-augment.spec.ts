@@ -8,6 +8,7 @@
  * 仓库没有 jsdom，这里用最小假 DOM 钉住三件事：补控件、按会话查勾选
  * 状态、点击动作怎么路由。
  */
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   decorateRow,
@@ -24,6 +25,7 @@ interface FakeEl {
   attrs: Record<string, string>
   children: FakeEl[]
   parent: FakeEl | null
+  nextSibling: FakeEl | null
   checked: boolean
   innerHTML: string
   setAttribute(name: string, value: string): void
@@ -31,6 +33,8 @@ interface FakeEl {
   hasAttribute(name: string): boolean
   prepend(node: FakeEl): void
   append(node: FakeEl): void
+  insertBefore(node: FakeEl, before: FakeEl | null): void
+  querySelector(selector: string): FakeEl | null
   closest(selector: string): FakeEl | null
 }
 
@@ -42,11 +46,19 @@ function el(tag: string, attrs: Record<string, string> = {}): FakeEl {
     parent: null,
     checked: false,
     innerHTML: '',
+    get nextSibling(): FakeEl | null {
+      const p = node.parent
+      if (p === null) return null
+      const at = p.children.indexOf(node)
+      return at < 0 ? null : p.children[at + 1] ?? null
+    },
     setAttribute(name, value) { node.attrs[name] = value },
     getAttribute(name) { return name in node.attrs ? (node.attrs[name] ?? null) : null },
     hasAttribute(name) { return name in node.attrs },
     prepend(child) { child.parent = node; node.children.unshift(child) },
     append(child) { child.parent = node; node.children.push(child) },
+    insertBefore(child, before) { child.parent = node; const at = before === null ? -1 : node.children.indexOf(before); if (at < 0) node.children.push(child); else node.children.splice(at, 0, child) },
+    querySelector(selector) { const tag = /^([a-z]+)/.exec(selector)?.[1]; return node.children.find(child => child.tag === tag) ?? null },
     closest(selector) {
       // 只支持 `[data-xxx]` 形态的选择器：取属性名往上找。
       const name = /^\[([^\]=]+)\]$/.exec(selector)?.[1]
@@ -81,6 +93,15 @@ function handlers(checked: (sessionId: string, path: string) => boolean = () => 
 const fileRow = (path: string): FakeEl => el('li', { 'data-files-entry': 'file', 'data-files-path': path })
 
 describe('文件行控件的补挂', () => {
+  it('多选框放进文件按钮内部，编辑按钮紧跟其后；三者同一行', () => {
+    const row = fileRow('docs/a.md')
+    const open = el('button')
+    row.append(open)
+    decorateRow(row as never, 'session-one', handlers().value, fakeDoc() as never)
+    expect(open.children[0]!.getAttribute('data-chat-file-check')).toBe('')
+    expect(row.children[1]!.getAttribute('data-chat-file-edit')).toBe('')
+    expect(row.children[0]).toBe(open)
+  })
   it('给一行文件补上勾选框与编辑钮，并带上路径与会话', () => {
     const row = fileRow('docs/a.md')
     const h = handlers()
@@ -223,5 +244,24 @@ describe('新会话/旧会话判定', () => {
     expect(hasHistoryForPhase('settling')).toBeUndefined()
     expect(hasHistoryForPhase(undefined)).toBeUndefined()
     expect(hasHistoryForPhase(null)).toBeUndefined()
+  })
+})
+
+describe('文件行样式（多选框、编辑钮与文件名同行，悬停变色加框线）', () => {
+  const readCss = (): string => readFileSync(new URL('../src/file-tree-augment.module.css', import.meta.url), 'utf8')
+  it('鼠标移过整行变色并显示框线', () => {
+    const css = readCss()
+    expect(css).toMatch(/li\[data-files-entry="file"\]:hover[^{]*\{[^}]*background/)
+    expect(css).toMatch(/li\[data-files-entry="file"\]:hover[^{]*\{[^}]*border/)
+  })
+  it('多选框在文件按钮内部（选择器按后代匹配），按钮内「多选框 + 文件名」横排', () => {
+    const css = readCss()
+    expect(css).toMatch(/li\[data-files-entry="file"\] \[data-chat-file-check]/)
+    expect(css).not.toMatch(/li\[data-files-entry="file"\] > \[data-chat-file-check]/)
+    expect(css).toMatch(/li\[data-files-entry="file"\] > button:first-of-type[^{]*\{[^}]*display:\s*inline-flex/)
+  })
+  it('编辑按钮是行内元素不悬浮遮字（紧跟文件按钮之后，布局定位而非覆盖）', () => {
+    const css = readCss()
+    expect(css).not.toMatch(/data-chat-file-edit[^}]*position:\s*absolute/)
   })
 })

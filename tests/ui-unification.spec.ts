@@ -95,6 +95,16 @@ describe('统一编辑卡外壳 ComposeCard', () => {
     expect(source.indexOf('data-compose-new-session')).toBeLessThan(source.indexOf('data-compose-send'))
   })
 
+  it('所有编辑器顶栏都有复制，文件编辑底部另提供仅保存', () => {
+    const source = composeCardSource()
+    expect(source).toContain('onCopy')
+    expect(source).toContain('data-compose-copy')
+    expect(source).toContain('onSave')
+    expect(source).toContain('data-compose-save')
+    expect(source.indexOf('data-compose-copy')).toBeLessThan(source.indexOf('data-compose-cancel'))
+    expect(source.indexOf('data-compose-save')).toBeLessThan(source.indexOf('data-compose-new-session'))
+  })
+
   it('动作文案经由 labels 注入，不在组件里写死中文', () => {
     const source = composeCardSource()
     expect(source).toContain('labels.cancel')
@@ -142,6 +152,47 @@ describe('统一编辑链路', () => {
     for (const file of EDITORS) {
       expect(read(file)).toContain('compose.copyHint')
     }
+  })
+
+  it('答案、选区和文件编辑全部使用统一顶栏复制，不在底栏另放复制', () => {
+    for (const file of EDITORS) {
+      const source = read(file)
+      expect(source).toContain('onCopy=')
+      expect(source).not.toContain('data-local-collapse')
+    }
+  })
+
+  it('工具标签并入宿主「对话 / 轨迹」行：不再画第二排，改在宿主行上补挂自己的标签', () => {
+    // 宿主 conversation.view 条目是全局的（标签行每个会话渲染同一份），放不下
+    // 「每个会话各自的文件标签」；所以沿用文件树行控件的同款做法——在宿主
+    // 渲染出来的标签行里补挂控件，选中状态仍归 toolsState。
+    const tools = read('../src/conversation-tools.tsx')
+    const row = read('../src/tools-tabs.ts')
+    expect(tools).not.toContain('resourceTabs(')
+    expect(tools).toContain('attachToolsRow')
+    expect(row).toContain('data-conversation-tabs')
+    expect(row).toContain('data-chat-tools-row')
+    expect(row).toContain('data-chat-tools-tab-close')
+    expect(row).toContain('data-chat-tools-live')
+  })
+
+  it('打开本机文件与链接偏好入口挂进宿主会话头部动作槽位', () => {
+    expect(read('../src/conversation-tools.tsx')).toContain("name: 'conversation.session.header.actions'")
+  })
+
+  it('工具标签 Chrome 风格：框线分隔、当前标签突出、关闭钮有热区、过多时横向滚动', () => {
+    const css = read('../src/conversation-tools.module.css')
+    expect(css).toMatch(/\[data-chat-tools-tab\][^{]*\{[^}]*border/)
+    expect(css).toMatch(/\[data-chat-tools-tab-active\][^{]*\{[^}]*border/)
+    expect(css).toMatch(/\[data-chat-tools-tab-close\][^{]*\{[^}]*width:\s*(24|28)px/)
+    expect(css).toMatch(/\[data-chat-tools-group\][^{]*\{[^}]*overflow-x:\s*auto/)
+    expect(css).toMatch(/\[data-chat-tools-live\][^{]*\{[^}]*opacity/)
+  })
+
+  it('仅保存只给工作区文件的编辑：edit:// 开头的标签接写回通道，本机文件没有保存钮', () => {
+    const tools = read('../src/conversation-tools.tsx')
+    expect(tools).toContain('saveWorkspaceText')
+    expect(tools).toMatch(/contentId\.startsWith\('edit:\/\/'\)/)
   })
 
   it('链接偏好收进更多菜单：工具栏不再有 select，文件打开菜单不再写全局偏好', () => {
@@ -233,10 +284,9 @@ describe('余面统一：Mermaid、短 ID、宽表', () => {
     expect(source).toContain('th:last-child')
   })
 
-  it('关闭本地编辑标签不丢草稿文本：任何关闭路径都不再删除 docs（重开按 contentId 找回）', () => {
+  it('退出文件编辑会丢弃草稿，关闭时移除暂存文本', () => {
     const source = read('../src/conversation-tools.tsx')
-    expect(source).not.toMatch(/adapter\.close\(id, tab\.id\)[;,]?\s*docs\.delete/)
-    expect(source).toMatch(/onClose=\{\(\) => adapter\.close\(id, tab\.id\)\}/)
+    expect(source).toMatch(/closeDocument[\s\S]{0,180}docs\.delete/)
   })
 })
 

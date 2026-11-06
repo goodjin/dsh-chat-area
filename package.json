@@ -19,6 +19,10 @@
       "types": "./src/mermaid-asset.ts",
       "default": "./src/mermaid-asset.ts"
     },
+    "./workspace-write": {
+      "types": "./src/workspace-write.ts",
+      "default": "./src/workspace-write.ts"
+    },
     "./session-id-bar": {
       "types": "./src/session-id-bar/index.ts",
       "default": "./src/session-id-bar/index.ts"

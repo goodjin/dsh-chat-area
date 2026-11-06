@@ -21,13 +21,13 @@
  */
 import { useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
-import { FileTypeIcon, IconChevronDownOutlineRegular, IconChevronUpOutlineRegular, IconCloseOutlineRegular, IconWarningOutlineRegular, Toast, classifyFileType } from '@deepseek-ai/dsh-client-ui-primitives'
+import { FileTypeIcon, IconChevronDownOutlineRegular, IconCloseOutlineRegular, IconWarningOutlineRegular, Toast, classifyFileType } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MarkdownTurnReaders } from './markdown-turn-sources.ts'
 import type { RuntimeT } from './locales.ts'
 import { NAMESPACE } from './locales.ts'
 import { ComposeCard } from './compose-card.tsx'
 import { copyTextToClipboard, createSendController } from './send-actions.ts'
-import { btnQuietClass, btnClass, inputClass, statusNoticeClass, uiButtonClass } from './ui-theme.ts'
+import { inputClass, statusNoticeClass } from './ui-theme.ts'
 import css from './markdown-turn.module.css'
 
 /** 本机文件选择框可挑的类型：text/* 之外再加常用的代码 / 配置 / 文档后缀。 */
@@ -91,10 +91,12 @@ export function LocalFileComposerCard(props: {
   readonly onClose?: () => void
   readonly onDraftChange?: (text: string) => void
   readonly onSent?: () => void
+  /** 仅保存（写回文件，不发送）：只有来自工作区文件的编辑提供；缺席则底部不出现保存钮。 */
+  readonly onSave?: (text: string) => Promise<void>
   readonly doc: LocalFileDoc
   readonly readers: MarkdownTurnReaders
   readonly t: RuntimeT
-  /** overlay = 输入框上方的卡（默认，带收起/取消）；tab = 工具标签里的纯编辑卡。 */
+  /** overlay = 输入框上方的卡（默认）；tab = 工具标签里的纯编辑卡。 */
   readonly variant?: 'overlay' | 'tab'
 }): ReactNode {
   const variant = props.variant ?? 'overlay'
@@ -147,6 +149,17 @@ export function LocalFileComposerCard(props: {
       setToast({ seq: Date.now(), text: propsRef.current.t(ok ? 'markdownTurn.copied' : 'markdownTurn.copyFailed') })
     })
   }
+  const [saving, setSaving] = useState(false)
+  const saveOnly = (): void => {
+    if (props.onSave === undefined || saving) return
+    setSaving(true)
+    props.onSave(inputRef.current?.value ?? '').then(() => {
+      setToast({ seq: Date.now(), text: propsRef.current.t('compose.saveSaved') })
+    }, () => {
+      // 保存失败：内容留在编辑框里，只报状态。
+      setToast({ seq: Date.now(), text: propsRef.current.t('compose.saveFailed') })
+    }).finally(() => { setSaving(false) })
+  }
   const close = (): void => {
     if (pending) return
     if (props.onClose !== undefined) props.onClose()
@@ -161,25 +174,20 @@ export function LocalFileComposerCard(props: {
           headExtra={<span className={css.icon} data-file-icon={classifyFileType(props.doc.name)}>
             <FileTypeIcon path={props.doc.name} size={14} />
           </span>}
-          headerActions={!tabMode && (
-            <button
-              type="button"
-              className={uiButtonClass}
-              data-local-collapse=""
-              aria-label={t('markdownTurn.collapse')}
-              title={t('markdownTurn.collapse')}
-              onClick={() => { if (!pending) setExpanded(false) }}
-            >
-              <IconChevronUpOutlineRegular size={16} />
-            </button>
-          )}
           onCancel={close}
+          onCopy={copyAll}
+          onSave={props.onSave === undefined ? undefined : saveOnly}
           onSend={() => { submit('current') }}
           onSendNewSession={() => { submit('new') }}
           sendDisabled={!hasText}
-          pending={pending}
-          labels={{ cancel: t('markdownTurn.cancel'), send: t('compose.sendCurrent'), newSession: t('compose.sendNewSession') }}
-          actions={<button type="button" className={`${btnClass} ${btnQuietClass}`} onClick={copyAll}>{t('markdownTurn.copyAll')}</button>}
+          pending={pending || saving}
+          labels={{
+            cancel: t('markdownTurn.cancel'),
+            send: t('compose.sendCurrent'),
+            newSession: t('compose.sendNewSession'),
+            copy: t('compose.copy'),
+            save: t('compose.save'),
+          }}
         >
           <textarea
             ref={inputRef}

@@ -20,16 +20,6 @@ export interface ToolTab {
 }
 export interface ToolsSnapshot { active?: string; tabs: readonly ToolTab[] }
 
-/**
- * 第二行标签只放资源标签（本机文件、工作区文本）。
- *
- * 会话本身由第一行的「会话」按钮表示：再画一枚同名标签，界面上就是
- * 「会话」下面又挂一个「会话」，重复且让人分不清哪个是真入口。
- */
-export function resourceTabs(tabs: readonly ToolTab[]): ToolTab[] {
-  return tabs.filter(tab => tab.kind === 'local' || tab.kind === 'text')
-}
-
 /** Stable id of the per-session conversation tab; one session owns exactly one. */
 export const CHAT_TAB_ID = 'chat-power-chat-tab'
 const EMPTY: ToolsSnapshot = { tabs: [] }

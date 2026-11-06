@@ -11,12 +11,19 @@
 # 2. 宿主半边（`chat-power-mermaid-asset`）：`/chat-power/mermaid.js` 这条
 #    exact 静态资源路由，供浏览器半边第一次遇到图时懒加载 mermaid 运行时。走独立
 #    子路径行（DSH 把子路径行当宿主行处理），把 3.5 MB 运行时从客户端包里剥出去。
+#
+# 3. 宿主半边（`chat-power-workspace-write`）：`/chat-power/workspace-file` 这条
+#    exact 写回路由，供文件编辑卡的「仅保存」把文本写回工作区文件。宿主的
+#    workspaceFiles 只读，写回只此一条路：同一登录准入、会话必须存在、路径限制
+#    在会话工作区根之内、正文有大小上限（见 src/workspace-write.ts 的说明）。
 
 - insert:
     - id: chat-power-client
       name: '@goodjin2/dsh-chat-power'
     - id: chat-power-mermaid-asset
       name: '@goodjin2/dsh-chat-power/mermaid-asset'
+    - id: chat-power-workspace-write
+      name: '@goodjin2/dsh-chat-power/workspace-write'
 
 # Conversation tools also offer the browser in web profiles (iframe fallback).
 - id: ui-sidebar-browser
