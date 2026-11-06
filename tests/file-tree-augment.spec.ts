@@ -1,36 +1,203 @@
 /**
- * 文件树行控件：wrap 注册契约与纯判定。
+ * 文件树行控件：给渲染出来的文件行补上勾选框与编辑钮。
  *
- * 宿主文件树行上没有预留座位；chat-power 在私有座位
- * `chat-power.tools.sidebar.right.pane.tab` 上重注册 FilesBody（降优先级、同 key），
- * 在外层补挂多选框与悬浮编辑按钮。这里钉住 wrap 注册契约和行/路径判定。
+ * 宿主 0.2.2 起不能再「把宿主面板包一层再重注册」——子座位只能声明一次，
+ * 外层包会当场撞名，文件面板整块起不来。于是改成在**渲染出来的目录树上
+ * 直接补控件**：只看会话区工具区里的行，宿主右侧栏的文件树不受影响。
+ *
+ * 仓库没有 jsdom，这里用最小假 DOM 钉住三件事：补控件、按会话查勾选
+ * 状态、点击动作怎么路由。
  */
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
-  FILES_ACTIONS_CHILD, FILES_PANE_SLOT, filesRowPath, hasHistoryForPhase, isWorkspaceFilesEntry,
+  decorateRow,
+  filesRowPath,
+  handleRowControl,
+  hasHistoryForPhase,
+  syncRowChecks,
+  type AugmentHandlers,
 } from '../src/file-tree-augment.tsx'
 
-/** 样式契约走源码级断言（仓库无 CSS 渲染环境）。 */
-const augmentCss = (): string => readFileSync(new URL('../src/file-tree-augment.module.css', import.meta.url), 'utf8')
-const augmentSource = (): string => readFileSync(new URL('../src/file-tree-augment.tsx', import.meta.url), 'utf8')
+/** 最小假元素：够跑补控件与点击路由，不模拟布局。 */
+interface FakeEl {
+  tag: string
+  attrs: Record<string, string>
+  children: FakeEl[]
+  parent: FakeEl | null
+  checked: boolean
+  innerHTML: string
+  setAttribute(name: string, value: string): void
+  getAttribute(name: string): string | null
+  hasAttribute(name: string): boolean
+  prepend(node: FakeEl): void
+  append(node: FakeEl): void
+  closest(selector: string): FakeEl | null
+}
 
-describe('工作区文件 wrap 注册契约', () => {
-  it('宿主 files 条目按 children 里的文件动作座位识别', () => {
-    const filesEntry = {
-      options: { key: 'files-abc', priority: 0, children: { [FILES_ACTIONS_CHILD]: { kind: 'list', scope: 'session' } } },
-      component: () => null,
-    }
-    const browserEntry = {
-      options: { key: 'browser-abc', priority: 0 },
-      component: () => null,
-    }
-    expect(isWorkspaceFilesEntry(filesEntry as never)).toBe(true)
-    expect(isWorkspaceFilesEntry(browserEntry as never)).toBe(false)
+function el(tag: string, attrs: Record<string, string> = {}): FakeEl {
+  const node: FakeEl = {
+    tag,
+    attrs: { ...attrs },
+    children: [],
+    parent: null,
+    checked: false,
+    innerHTML: '',
+    setAttribute(name, value) { node.attrs[name] = value },
+    getAttribute(name) { return name in node.attrs ? (node.attrs[name] ?? null) : null },
+    hasAttribute(name) { return name in node.attrs },
+    prepend(child) { child.parent = node; node.children.unshift(child) },
+    append(child) { child.parent = node; node.children.push(child) },
+    closest(selector) {
+      // 只支持 `[data-xxx]` 形态的选择器：取属性名往上找。
+      const name = /^\[([^\]=]+)\]$/.exec(selector)?.[1]
+      if (name === undefined) return null
+      let cursor: FakeEl | null = node
+      while (cursor !== null) {
+        if (cursor.hasAttribute(name)) return cursor
+        cursor = cursor.parent
+      }
+      return null
+    },
+  }
+  return node
+}
+
+/** 假 document：只提供 createElement。 */
+const fakeDoc = () => ({ createElement: (tag: string) => el(tag) })
+
+/** 记录动作的假处理器。 */
+function handlers(checked: (sessionId: string, path: string) => boolean = () => false) {
+  const toggles: Array<[string, string, boolean]> = []
+  const edits: Array<[string, string]> = []
+  const value: AugmentHandlers = {
+    checked: (sessionId, path) => checked(sessionId, path),
+    onToggle: (sessionId, path, isChecked) => { toggles.push([sessionId, path, isChecked]) },
+    onEdit: (sessionId, path) => { edits.push([sessionId, path]) },
+  }
+  return { value, toggles, edits }
+}
+
+/** 造一行文件（宿主渲染出来的行）。 */
+const fileRow = (path: string): FakeEl => el('li', { 'data-files-entry': 'file', 'data-files-path': path })
+
+describe('文件行控件的补挂', () => {
+  it('给一行文件补上勾选框与编辑钮，并带上路径与会话', () => {
+    const row = fileRow('docs/a.md')
+    const h = handlers()
+    expect(decorateRow(row as never, 'session-one', h.value, fakeDoc() as never)).toBe(true)
+    expect(row.children).toHaveLength(2)
+    const [check, edit] = row.children
+    expect(check!.getAttribute('data-chat-file-check')).toBe('')
+    expect(check!.getAttribute('data-chat-file-path')).toBe('docs/a.md')
+    expect(check!.getAttribute('data-chat-file-session')).toBe('session-one')
+    expect(edit!.getAttribute('data-chat-file-edit')).toBe('')
+    expect(edit!.getAttribute('data-chat-file-path')).toBe('docs/a.md')
+    expect(edit!.getAttribute('data-chat-file-session')).toBe('session-one')
   })
-  it('私有座位名映射正确（不碰宿主右侧栏的槽位）', () => {
-    expect(FILES_PANE_SLOT).toBe('chat-power.tools.sidebar.right.pane.tab')
-    expect(FILES_ACTIONS_CHILD).toBe('chat-power.tools.sidebar.right.tab.files.actions')
+
+  it('补过的行不重复补（目录树重绘后不会叠出两层控件）', () => {
+    const row = fileRow('docs/a.md')
+    const h = handlers()
+    expect(decorateRow(row as never, 'session-one', h.value, fakeDoc() as never)).toBe(true)
+    expect(decorateRow(row as never, 'session-one', h.value, fakeDoc() as never)).toBe(false)
+    expect(row.children).toHaveLength(2)
+  })
+
+  it('没有路径标记的行不补（不是文件行）', () => {
+    const row = el('li', { 'data-files-entry': 'directory' })
+    const h = handlers()
+    expect(decorateRow(row as never, 'session-one', h.value, fakeDoc() as never)).toBe(false)
+    expect(row.children).toHaveLength(0)
+  })
+
+  it('勾选框的初始状态按会话查勾选集合', () => {
+    const row = fileRow('docs/a.md')
+    const h = handlers((sessionId, path) => sessionId === 'session-one' && path === 'docs/a.md')
+    decorateRow(row as never, 'session-one', h.value, fakeDoc() as never)
+    expect(row.children[0]!.checked).toBe(true)
+    const other = fileRow('docs/a.md')
+    decorateRow(other as never, 'session-two', h.value, fakeDoc() as never)
+    expect(other.children[0]!.checked).toBe(false)
+  })
+})
+
+describe('文件行控件的点击路由', () => {
+  it('点勾选框：写入或移除引用，并按会话状态回拨', () => {
+    const row = fileRow('docs/a.md')
+    const h = handlers()
+    decorateRow(row as never, 'session-one', h.value, fakeDoc() as never)
+    const check = row.children[0]!
+    check.checked = true
+    const stopped = { prevented: false, stopped: false }
+    const handled = handleRowControl({
+      target: check,
+      preventDefault: () => { stopped.prevented = true },
+      stopPropagation: () => { stopped.stopped = true },
+    } as never, h.value)
+    expect(handled).toBe(true)
+    expect(h.toggles).toEqual([['session-one', 'docs/a.md', true]])
+    // 点勾选框不该连带把文件打开：事件到行上之前就被截住。
+    expect(stopped.stopped).toBe(true)
+  })
+
+  it('勾选框保留浏览器自己的勾选动作（取消默认行为会把勾选弹回去）', () => {
+    const row = fileRow('docs/a.md')
+    const h = handlers()
+    decorateRow(row as never, 'session-one', h.value, fakeDoc() as never)
+    const check = row.children[0]!
+    check.checked = true
+    const stopped = { prevented: false }
+    handleRowControl({
+      target: check,
+      preventDefault: () => { stopped.prevented = true },
+      stopPropagation: () => {},
+    } as never, h.value)
+    expect(stopped.prevented).toBe(false)
+  })
+
+  it('点编辑钮：打开该路径的编辑副本', () => {
+    const row = fileRow('docs/a.md')
+    const h = handlers()
+    decorateRow(row as never, 'session-one', h.value, fakeDoc() as never)
+    const edit = row.children[1]!
+    const handled = handleRowControl({
+      target: edit,
+      preventDefault: () => {},
+      stopPropagation: () => {},
+    } as never, h.value)
+    expect(handled).toBe(true)
+    expect(h.edits).toEqual([['session-one', 'docs/a.md']])
+  })
+
+  it('点行上的其它地方不归我们管（不吞事件、不触发动作）', () => {
+    const row = fileRow('docs/a.md')
+    const h = handlers()
+    decorateRow(row as never, 'session-one', h.value, fakeDoc() as never)
+    const other = el('button', {})
+    row.append(other)
+    const stopped = { stopped: false }
+    const handled = handleRowControl({
+      target: other,
+      preventDefault: () => {},
+      stopPropagation: () => { stopped.stopped = true },
+    } as never, h.value)
+    expect(handled).toBe(false)
+    expect(stopped.stopped).toBe(false)
+    expect(h.toggles).toEqual([])
+    expect(h.edits).toEqual([])
+  })
+})
+
+describe('勾选状态回同步', () => {
+  it('会话状态变化后，已挂的勾选框跟着变', () => {
+    const row = fileRow('docs/a.md')
+    let checked = false
+    const h = handlers(() => checked)
+    decorateRow(row as never, 'session-one', h.value, fakeDoc() as never)
+    expect(row.children[0]!.checked).toBe(false)
+    checked = true
+    syncRowChecks(row.children as never, h.value)
+    expect(row.children[0]!.checked).toBe(true)
   })
 })
 
@@ -42,24 +209,6 @@ describe('文件行判定', () => {
   it('没有路径标记的行返回 undefined', () => {
     const li = { getAttribute: () => null }
     expect(filesRowPath(li as never)).toBeUndefined()
-  })
-})
-
-describe('文件树控件样式契约', () => {
-  it('编辑按钮是 28px 图标钮：hover 与 focus-within 出现、触屏常显', () => {
-    const css = augmentCss()
-    expect(css).toMatch(/width:\s*28px/)
-    expect(css).toContain(':focus-within')
-    expect(css).toContain('@media (hover: none)')
-  })
-  it('行高至少 32px（checkbox 视觉 14px，点击区依赖行内间距满足 WCAG 例外）', () => {
-    expect(augmentCss()).toMatch(/min-height:\s*32px/)
-  })
-  it('编辑动作是图标而非文字按钮；勾选失败按会话状态回滚', () => {
-    const source = augmentSource()
-    expect(source).not.toContain(`edit.textContent = '编辑'`)
-    expect(source).toContain('edit.innerHTML = EDIT_ICON_SVG')
-    expect(source).toMatch(/check\.checked = handlersRef\.current\.checked\(path\)/)
   })
 })
 

@@ -1,45 +1,61 @@
 /**
- * 工作区文件树的行控件：多选框（勾选 → 输入框文件引用）+ 悬浮编辑按钮。
+ * 工作区文件树的行控件：多选框（勾选 → 输入框引用）+ 悬浮编辑按钮。
  *
- * 宿主 FilesBody 的行上没有预留座位；这里在**私有**座位
- * `chat-power.tools.sidebar.right.pane.tab` 上把 FilesBody 重注册一遍（同 key、
- * 优先级更低从而在外层），渲染原生组件并在容器上补挂控件：
+ * 宿主 0.2.2 起，宿主面板的座位不能被「包一层再重注册」——子座位全局只能
+ * 声明一次，外层包会当场撞名，文件面板整块起不来（控制台里是
+ * `slot "..." is already declared`）。于是这里不再动宿主的座位表，改为在
+ * **渲染出来的目录树上直接补控件**：只认会话区工具区里的行（容器带
+ * `data-chat-tools-session`），宿主右侧栏的文件树没有这个标记，不会被碰。
  *
- * - 行控件是挂在行元素上的绝对定位覆盖层（不是 React 受管子节点的插队），
- *   行自身的排序、更新不受影响；树刷新后由容器级 MutationObserver 重新补挂。
- * - 事件用容器级委托处理，控件元素不挂自己的监听。
- * - 只装本包时这个 wrap 才生效；卸载时恢复原条目。
+ * 事件用捕获阶段的委托：勾选框与编辑钮必须先于宿主的「点行打开文件」
+ * 收到点击，否则勾一下就会顺手把文件打开。
  */
-import { createElement, useEffect, useRef } from 'react'
-import type { ReactNode } from 'react'
-import augmentCss from './file-tree-augment.module.css'
 import { fallbackT } from './locales.ts'
 
-/** 私有座位名（宿主 `sidebar.right.pane.tab` 经 toolSlot 映射后的名字）。 */
-export const FILES_PANE_SLOT = 'chat-power.tools.sidebar.right.pane.tab'
-/** 宿主 files 条目独有的 children 座位名（映射后），用作识别标记。 */
-export const FILES_ACTIONS_CHILD = 'chat-power.tools.sidebar.right.tab.files.actions'
+/** 勾选框标记。 */
+export const CHECK_ATTR = 'data-chat-file-check'
+/** 编辑钮标记。 */
+export const EDIT_ATTR = 'data-chat-file-edit'
+/** 行控件所属会话：补控件时写上，点击时据此回到对的会话。 */
+export const SESSION_ATTR = 'data-chat-file-session'
+/** 已补过控件的行（目录树重绘后不重复补）。 */
+export const DECORATED_ATTR = 'data-chat-file-decorated'
+/** 会话区工具区内容容器的标记：带这个标记的容器里才有我们的行控件。 */
+export const TOOLS_SESSION_ATTR = 'data-chat-tools-session'
 
-/** 插槽注册表里一个条目的最小结构。 */
-interface SlotEntry {
-  options: { key?: string; priority?: number; children?: Record<string, unknown>; locale?: string; inject?: unknown; store?: unknown }
-  component: unknown
+/** 「编辑副本」的铅笔描边图标（与选区弹条同款风格，颜色随文字）。 */
+const EDIT_ICON_SVG = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M11.2 2.2a1.6 1.6 0 0 1 2.6 2.6L6 12.5l-3.5.9.9-3.5 7.8-7.7Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>'
+
+/** 补控件与点击路由要用的最小元素面（真实 DOM 满足它，测试里的假元素也满足）。 */
+export interface ElementLike {
+  setAttribute(name: string, value: string): void
+  getAttribute(name: string): string | null
+  hasAttribute(name: string): boolean
+  prepend(node: unknown): void
+  append(node: unknown): void
+  closest(selector: string): unknown
+  checked?: boolean
+  innerHTML?: string
 }
 
-/** 宿主插槽表 chat-power 用到的最小面。 */
-interface AugmentSlots {
-  entries(key: string): readonly SlotEntry[]
-  subscribe(key: string, fn: () => void): () => void
-  register(options: Record<string, unknown>, component: unknown): () => void
+/** 建元素要用的最小 document 面。 */
+export interface DocLike {
+  createElement(tag: string): ElementLike
 }
 
-/** 条目的 children 里带文件动作座位 → 它是 FilesBody。 */
-export function isWorkspaceFilesEntry(entry: SlotEntry): boolean {
-  return entry.options.children?.[FILES_ACTIONS_CHILD] !== undefined
+export interface AugmentHandlers {
+  /** 该会话里某路径是否处于勾选状态。 */
+  checked(sessionId: string, path: string): boolean
+  /** 勾选状态变化：checked=true 追加引用，false 移除。 */
+  onToggle(sessionId: string, path: string, checked: boolean): void
+  /** 点击悬浮编辑按钮。 */
+  onEdit(sessionId: string, path: string): void
+  /** 订阅勾选状态变化（发送清空、跨标签改动）以回同步勾选框；可选。 */
+  subscribeChanges?(listener: () => void): () => void
 }
 
 /** 行元素上的工作区相对路径（宿主写好的 data-files-path）。 */
-export function filesRowPath(row: Element): string | undefined {
+export function filesRowPath(row: { getAttribute(name: string): string | null }): string | undefined {
   const value = row.getAttribute('data-files-path')
   return value === null || value === '' ? undefined : value
 }
@@ -51,137 +67,117 @@ export function hasHistoryForPhase(phase: string | null | undefined): boolean | 
   return undefined
 }
 
-export interface AugmentHandlers {
-  /** 该会话里某路径是否处于勾选状态。 */
-  checked(path: string): boolean
-  /** 勾选状态变化：checked=true 追加引用，false 移除。 */
-  onToggle(path: string, checked: boolean): void
-  /** 点击悬浮编辑按钮。 */
-  onEdit(path: string): void
-  /** 订阅勾选状态变化（发送清空、跨标签改动）以回同步勾选框；可选。 */
-  subscribeChanges?(listener: () => void): () => void
+/**
+ * 给一行文件补上勾选框与编辑钮。
+ *
+ * @returns 是否补了（已补过或不是文件行则不补）。
+ */
+export function decorateRow(row: ElementLike, sessionId: string, handlers: AugmentHandlers, doc: DocLike): boolean {
+  if (row.hasAttribute(DECORATED_ATTR)) return false
+  const path = filesRowPath(row)
+  if (path === undefined) return false
+  const check = doc.createElement('input')
+  check.setAttribute('type', 'checkbox')
+  check.setAttribute(CHECK_ATTR, '')
+  check.setAttribute('data-chat-file-path', path)
+  check.setAttribute(SESSION_ATTR, sessionId)
+  check.setAttribute('aria-label', fallbackT('fileTree.reference', { path }))
+  check.checked = handlers.checked(sessionId, path)
+  const edit = doc.createElement('button')
+  edit.setAttribute('type', 'button')
+  edit.setAttribute(EDIT_ATTR, '')
+  edit.setAttribute('data-chat-file-path', path)
+  edit.setAttribute(SESSION_ATTR, sessionId)
+  edit.setAttribute('aria-label', fallbackT('fileTree.editCopy', { path }))
+  edit.setAttribute('title', fallbackT('fileTree.editCopy', { path }))
+  edit.innerHTML = EDIT_ICON_SVG
+  row.prepend(check)
+  row.append(edit)
+  row.setAttribute(DECORATED_ATTR, '')
+  return true
 }
-
-/** 挂钩插槽表：找到 FilesBody 条目并以更低优先级重注册 wrap。 */
-export function attachFilesTreeAugment(slots: AugmentSlots, handlers: () => AugmentHandlers): () => void {
-  let removeWrap: (() => void) | undefined
-  let native: unknown
-  let key: string | undefined
-  let locale: string | undefined
-  let inject: unknown
-  let store: unknown
-  let installing = false
-  const attach = (): void => {
-    if (installing) return
-    const entry = slots.entries(FILES_PANE_SLOT).find(isWorkspaceFilesEntry)
-    if (entry === undefined || entry.component === undefined) return
-    if (entry.component === native && removeWrap !== undefined) return
-    installing = true
-    try {
-      removeWrap?.()
-      native = entry.component
-      key = entry.options.key
-      locale = typeof entry.options.locale === 'string' ? entry.options.locale : undefined
-      inject = entry.options.inject
-      store = entry.options.store
-      const Native = entry.component as (props: Record<string, unknown>) => ReactNode
-      const Wrapper = (props: Record<string, unknown>): ReactNode => createElement(FilesTreeAugment, {
-        handlers: handlers(),
-        children: createElement(Native, props),
-      })
-      removeWrap = slots.register({
-        name: FILES_PANE_SLOT, key, priority: -10,
-        ...(locale === undefined ? {} : { locale }),
-        ...(inject === undefined ? {} : { inject }),
-        ...(store === undefined ? {} : { store }),
-        ...(entry.options.children === undefined ? {} : { children: entry.options.children }),
-      }, Wrapper)
-    } finally { installing = false }
-  }
-  const unsubscribe = slots.subscribe(FILES_PANE_SLOT, attach)
-  attach()
-  return () => {
-    unsubscribe()
-    removeWrap?.()
-    removeWrap = undefined
-    native = undefined
-  }
-}
-
-const CHECK_ATTR = 'data-chat-file-check'
-const EDIT_ATTR = 'data-chat-file-edit'
-
-/** 「编辑副本」的铅笔描边图标（与选区弹条同款风格，颜色随文字）。 */
-const EDIT_ICON_SVG = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M11.2 2.2a1.6 1.6 0 0 1 2.6 2.6L6 12.5l-3.5.9.9-3.5 7.8-7.7Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>'
 
 /**
- * 文件树容器：渲染原生 FilesBody，并给每个文件行补挂多选框与悬浮编辑按钮。
- * 重新装饰靠 MutationObserver；事件在容器上委托。
+ * 点到我们自己的控件上时的动作路由。
+ *
+ * @returns 是否是我们处理了这次点击（处理过就把事件截住，别让宿主顺手打开文件）。
  */
-export function FilesTreeAugment(props: { handlers: AugmentHandlers; children?: ReactNode }): ReactNode {
-  const container = useRef<HTMLDivElement | null>(null)
-  const handlersRef = useRef(props.handlers)
-  handlersRef.current = props.handlers
-  useEffect(() => {
-    const root = container.current
-    if (root === null || typeof MutationObserver === 'undefined') return
-    const decorate = (): void => {
-      for (const row of root.querySelectorAll('li[data-files-entry="file"]')) {
-        if (row.querySelector(`:scope > [${CHECK_ATTR}]`) !== null) continue
-        const path = filesRowPath(row)
-        if (path === undefined) continue
-        row.classList.add(augmentCss.row ?? '')
-        const check = document.createElement('input')
-        check.type = 'checkbox'
-        check.setAttribute(CHECK_ATTR, '')
-        check.checked = handlersRef.current.checked(path)
-        check.setAttribute('data-chat-file-path', path)
-        check.setAttribute('aria-label', fallbackT('fileTree.reference', { path }))
-        const edit = document.createElement('button')
-        edit.type = 'button'
-        edit.setAttribute(EDIT_ATTR, '')
-        edit.setAttribute('data-chat-file-path', path)
-        edit.setAttribute('aria-label', fallbackT('fileTree.editCopy', { path }))
-        edit.title = fallbackT('fileTree.editCopy', { path })
-        edit.innerHTML = EDIT_ICON_SVG
-        row.prepend(check)
-        row.append(edit)
-      }
+export function handleRowControl(
+  event: { target: unknown; preventDefault(): void; stopPropagation(): void },
+  handlers: AugmentHandlers,
+): boolean {
+  const target = event.target as { closest?: (selector: string) => unknown } | null
+  if (target === null || typeof target.closest !== 'function') return false
+  const edit = target.closest(`[${EDIT_ATTR}]`) as ElementLike | null
+  if (edit !== null) {
+    const path = edit.getAttribute('data-chat-file-path')
+    const sessionId = edit.getAttribute(SESSION_ATTR)
+    if (path === null || sessionId === null) return false
+    event.stopPropagation()
+    event.preventDefault()
+    handlers.onEdit(sessionId, path)
+    return true
+  }
+  const check = target.closest(`[${CHECK_ATTR}]`) as ElementLike | null
+  if (check !== null) {
+    const path = check.getAttribute('data-chat-file-path')
+    const sessionId = check.getAttribute(SESSION_ATTR)
+    if (path === null || sessionId === null) return false
+    // 只截住传播，不取消默认行为：勾选框的勾选动作由浏览器做，
+    // 取消默认行为会把刚勾上的状态弹回去（看起来像「勾不上」）。
+    event.stopPropagation()
+    handlers.onToggle(sessionId, path, check.checked === true)
+    // 写入失败时以会话状态为准回拨（成功时两者一致，重设无害）。
+    check.checked = handlers.checked(sessionId, path)
+    return true
+  }
+  return false
+}
+
+/** 勾选状态变化后，把已挂的勾选框按会话状态回拨。 */
+export function syncRowChecks(checks: Iterable<ElementLike>, handlers: AugmentHandlers): void {
+  for (const check of checks) {
+    const path = check.getAttribute('data-chat-file-path')
+    const sessionId = check.getAttribute(SESSION_ATTR)
+    if (path === null || sessionId === null) continue
+    check.checked = handlers.checked(sessionId, path)
+  }
+}
+
+/**
+ * 把行控件挂到会话区工具区的文件树上。
+ *
+ * 目录树重绘后新行会冒出来，所以盯着页面变化补控件；控件自己带会话与
+ * 路径，点击时不必再猜是哪个会话。
+ */
+export function attachFilesTreeAugment(handlers: () => AugmentHandlers): () => void {
+  if (typeof document === 'undefined') return () => {}
+  const root = document
+  const decorate = (): void => {
+    for (const container of root.querySelectorAll(`[${TOOLS_SESSION_ATTR}]`)) {
+      const sessionId = container.getAttribute(TOOLS_SESSION_ATTR)
+      if (sessionId === null || sessionId === '') continue
+      const rows = container.querySelectorAll(`li[data-files-entry="file"]:not([${DECORATED_ATTR}])`)
+      for (const row of rows) decorateRow(row as unknown as ElementLike, sessionId, handlers(), root as unknown as DocLike)
     }
-    // 勾选状态在会话状态一侧变化（发送清空、跨标签改动）时回同步已挂的勾选框。
-    const sync = (): void => {
-      for (const check of root.querySelectorAll<HTMLInputElement>(`[${CHECK_ATTR}]`)) {
-        const path = check.getAttribute('data-chat-file-path')
-        if (path !== null) check.checked = handlersRef.current.checked(path)
-      }
+  }
+  const sync = (): void => {
+    for (const container of root.querySelectorAll(`[${TOOLS_SESSION_ATTR}]`)) {
+      const checks = container.querySelectorAll(`[${CHECK_ATTR}]`)
+      syncRowChecks(checks as unknown as Iterable<ElementLike>, handlers())
     }
-    decorate()
-    const unsubscribeChanges = handlersRef.current.subscribeChanges?.(sync)
-    const observer = new MutationObserver(decorate)
-    observer.observe(root, { childList: true, subtree: true })
-    const click = (event: Event): void => {
-      const target = event.target as Element | null
-      if (target === null) return
-      const edit = target.closest(`[${EDIT_ATTR}]`)
-      if (edit !== null) {
-        const path = edit.getAttribute('data-chat-file-path')
-        if (path !== null) handlersRef.current.onEdit(path)
-        return
-      }
-      const check = target.closest(`[${CHECK_ATTR}]`)
-      if (check instanceof HTMLInputElement) {
-        const path = check.getAttribute('data-chat-file-path')
-        if (path !== null) handlersRef.current.onToggle(path, check.checked)
-        // 写入失败时以会话状态为准回拨（成功时两者一致，重设无害）。
-        if (path !== null) check.checked = handlersRef.current.checked(path)
-      }
-    }
-    root.addEventListener('click', click)
-    return () => {
-      unsubscribeChanges?.()
-      observer.disconnect()
-      root.removeEventListener('click', click)
-    }
-  }, [])
-  return <div ref={container} className={augmentCss.root ?? ''} data-chat-files-augment="">{props.children}</div>
+  }
+  // 捕获阶段：先于宿主的「点行打开文件」拿到事件，勾选才不会顺手打开文件。
+  const onClick = (event: Event): void => { handleRowControl(event, handlers()) }
+  root.addEventListener('click', onClick, true)
+  const observer = typeof MutationObserver === 'undefined' ? undefined : new MutationObserver(decorate)
+  observer?.observe(root.body, { childList: true, subtree: true })
+  const unsubscribe = handlers().subscribeChanges?.(sync)
+  decorate()
+  sync()
+  return () => {
+    root.removeEventListener('click', onClick, true)
+    observer?.disconnect()
+    unsubscribe?.()
+  }
 }

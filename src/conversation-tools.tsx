@@ -57,19 +57,18 @@ export function registerConversationTools(ctx: any) {
       toolsNotice.set(sessionId, `读取失败：${String(error)}`)
     })
   }
+  // 行控件按会话走：会话 ID 写在控件上，点击时不用再猜是哪个会话。
   const augmentHandlers = (): AugmentHandlers => ({
-    checked: path => { const id = currentId(); return id !== undefined && checkedFiles.has(id, path) },
-    onToggle: (path, checked) => {
-      const id = currentId()
-      if (id === undefined) return
-      if (!applyReference(id, path, checked)) {
-        toolsNotice.set(id, checked ? '暂时无法写入输入框引用' : '输入框暂不可访问，未能移除该引用')
+    checked: (sessionId, path) => checkedFiles.has(sessionId, path),
+    onToggle: (sessionId, path, checked) => {
+      if (!applyReference(sessionId, path, checked)) {
+        toolsNotice.set(sessionId, checked ? '暂时无法写入输入框引用' : '输入框暂不可访问，未能移除该引用')
         return
       }
-      checkedFiles.toggle(id, path, checked)
-      toolsNotice.clear(id)
+      checkedFiles.toggle(sessionId, path, checked)
+      toolsNotice.clear(sessionId)
     },
-    onEdit: path => { const id = currentId(); if (id !== undefined) openWorkspaceEditor(id, path) },
+    onEdit: (sessionId, path) => openWorkspaceEditor(sessionId, path),
     subscribeChanges: listener => checkedFiles.subscribe(listener),
   })
   function ToolArea(props: any) {
@@ -148,7 +147,7 @@ export function registerConversationTools(ctx: any) {
         </div>)}
       </div>
       {(error !== '' || notice !== '') && <p role="alert" className={statusNoticeClass} data-variant="error">{error !== '' ? error : notice}</p>}
-      <div className={css.content} data-chat-tools-bodies="">
+      <div className={css.content} data-chat-tools-bodies="" data-chat-tools-session={id}>
         {s.tabs.map(tab => {
           if (tab.kind === 'chat') return null
           const visible = tab.id === s.active
@@ -327,8 +326,8 @@ export function registerConversationTools(ctx: any) {
     name: toolSlot('sidebar.right.tab.document.actions'), id: 'chat-power-document-actions',
   }, DocumentActions))
   adapter.install()
-  // 文件树行控件：在私有座位上重注册 FilesBody，补挂多选框与悬浮编辑按钮。
-  ctx.effect(() => attachFilesTreeAugment(ctx.slots, augmentHandlers), 'chat-power: files tree augment')
+  // 文件树行控件：宿主 0.2.2 起不能再包宿主面板，改为在渲染出来的树上补控件。
+  ctx.effect(() => attachFilesTreeAugment(augmentHandlers), 'chat-power: files tree augment')
   // One policy for ordinary HTTP links across the application. Explicit modifiers
   // retain browser conventions. Native browser's external button remains explicit.
   ctx.effect(() => {
